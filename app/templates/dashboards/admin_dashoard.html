@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Dashboard</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-teal-50 min-h-screen">
+    <nav class="bg-teal-700 p-4 text-white">
+        <h1 class="text-xl font-bold">Admin Dashboard</h1>
+        <a href="{{ url_for('auth.logout') }}" class="float-right underline">Logout</a>
+    </nav>
+    <main class="p-6">
+        <h2 class="text-lg font-semibold mb-4">Manage Your Hospital</h2>
+        <p>Here you can view hospital info, staff, and treatments.</p>
+        <!-- Later: Add tables, forms, and statistics -->
+    </main>
+</body>
+</html>
+
