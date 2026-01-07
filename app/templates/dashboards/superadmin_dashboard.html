@@ -73,6 +73,10 @@
 
         <main class="p-6">
             <h2 class="text-2xl font-semibold mb-4 text-teal-700">Manage Hospitals & Admins</h2>
+            <div class="">
+    {{ hospitals }}
+</div>
+
 
             <!-- Hospitals Table -->
             <div class="mb-6 bg-white shadow rounded-lg p-6">
@@ -165,12 +169,34 @@
                 <input type="password" name="password" required class="w-full border px-3 py-2 rounded"/>
             </div>
             <div>
-                <label class="block text-teal-700 font-medium">Hospital</label>
-                <select name="hospital_id" required class="w-full border px-3 py-2 rounded text-gray-900">
-                    {% for hospital in hospitals %}
-                    <option value="{{ hospital.hospital_id }}">{{ hospital.name }}</option>
-                    {% endfor %}
-                </select>
+                
+              <div>
+    <label class="block text-teal-700 font-medium mb-1">Hospital</label>
+
+    <select
+        name="hospital_id"
+        required
+        class="w-full border border-gray-300 px-3 py-2 rounded
+               bg-white text-gray-900 focus:outline-none focus:ring-2
+               focus:ring-teal-500">
+
+        <option value="" disabled selected>
+            Select a hospital
+        </option>
+
+        {% for hospital in hospitals %}
+            <option value="{{ hospital.hospital_id }}">
+                {{ hospital.name }} — {{ hospital.location }}
+            </option>
+            <p class="text-sm text-red-600 mt-2">
+    Hospitals loaded: {{ hospitals|length }}
+</p>
+
+        {% endfor %}
+
+    </select>
+</div>
+
             </div>
             <div class="flex justify-end space-x-2">
                 <button type="button" onclick="toggleModal('adminModal')" class="px-4 py-2 rounded border border-gray-300">Cancel</button>

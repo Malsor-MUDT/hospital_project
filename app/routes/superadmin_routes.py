@@ -14,6 +14,7 @@ superadmin_bp = Blueprint("superadmin", __name__, url_prefix="/superadmin")
 # ----------------------
 @superadmin_bp.route("/dashboard")
 def dashboard():
+    print("SESSION AT DASHBOARD:", dict(session))
     # Only superadmin role can access
     if session.get("role") != 1:
         flash("Access denied", "danger")

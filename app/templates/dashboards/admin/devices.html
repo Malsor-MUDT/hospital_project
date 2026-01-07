@@ -1,0 +1,217 @@
+{% extends "dashboards/admin/base_admin.html" %}
+
+{% block content %}
+<div class="space-y-8">
+
+    <!-- Header -->
+    <div class="flex justify-between items-center">
+        <h1 class="text-2xl font-semibold text-teal-700">Devices</h1>
+        <button
+            onclick="toggleModal('deviceModal')"
+            class="bg-teal-600 text-white px-4 py-2 rounded hover:bg-teal-700">
+            + Add Device
+        </button>
+    </div>
+
+    <!-- Devices Table -->
+    <div class="bg-white rounded-lg shadow overflow-x-auto">
+        <table class="w-full text-sm">
+            <thead class="bg-teal-50 text-teal-700">
+                <tr>
+                    <th class="p-3 text-left">Type</th>
+                    <th class="p-3 text-left">Cost / Use</th>
+                    <th class="p-3 text-left">Price / Use</th>
+                    <th class="p-3 text-left">Status</th>
+                    <th class="p-3 text-left">Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for d in devices %}
+                <tr class="border-t">
+                    <td class="p-3">{{ d.device_type }}</td>
+                    <td class="p-3">€{{ "%.2f"|format(d.cost_per_use) }}</td>
+                    <td class="p-3">€{{ "%.2f"|format(d.price_per_use) }}</td>
+                    <td class="p-3">
+                        <span class="
+                            px-2 py-1 rounded text-xs font-medium
+                            {% if d.status == 'operational' %} bg-green-100 text-green-700
+                            {% elif d.status == 'maintenance' %} bg-yellow-100 text-yellow-700
+                            {% else %} bg-red-100 text-red-700 {% endif %}
+                        ">
+                            {{ d.status }}
+                        </span>
+                    </td>
+                    <td class="p-3 space-x-2">
+                        <button
+                            onclick="toggleModal('editDeviceModal-{{ d.device_id }}')"
+                            class="px-3 py-1 bg-blue-600 text-white rounded text-xs"
+                            >
+                            Edit
+                        </button>
+
+                        <button
+                            onclick="toggleModal('deleteDeviceModal-{{ d.device_id }}')"
+                            class="px-3 py-1 bg-red-600 text-white rounded text-xs">
+                            Delete
+                        </button>
+                    </td>
+                </tr>
+
+                <!-- EDIT DEVICE MODAL -->
+                <div id="editDeviceModal-{{ d.device_id }}"
+                     class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center z-50">
+                    <div class="bg-white w-96 rounded-lg p-6">
+                        <h2 class="text-lg font-semibold text-teal-700 mb-4">Edit Device</h2>
+
+                        <form method="POST"
+                              action="{{ url_for('admin.update_device', device_id=d.device_id) }}"
+                              >
+                        <div class="space-y-4">
+                            <input
+                                name="device_type"
+                                value="{{ d.device_type }}"
+                                required
+                                class="w-full border px-3 py-2 rounded">
+
+                            <input
+                                type="number"
+                                step="0.01"
+                                name="cost_per_use"
+                                value="{{ d.cost_per_use }}"
+                                required
+                                class="w-full border px-3 py-2 rounded">
+
+                            <input
+                                type="number"
+                                step="0.01"
+                                name="price_per_use"
+                                value="{{ d.price_per_use }}"
+                                required
+                                class="w-full border px-3 py-2 rounded">
+
+                            <select name="status" class="w-full border px-3 py-2 rounded">
+                                <option value="operational" {{ 'selected' if d.status == 'operational' }}>Operational</option>
+                                <option value="maintenance" {{ 'selected' if d.status == 'maintenance' }}>Maintenance</option>
+                                <option value="broken" {{ 'selected' if d.status == 'broken' }}>Broken</option>
+                            </select>
+
+                            <div class="flex justify-end space-x-2">
+                                <button
+                                    type="button"
+                                    onclick="toggleModal('editDeviceModal-{{ d.device_id }}')"
+                                    class="border px-4 py-2 rounded">
+                                    Cancel
+                                </button>
+
+                                <button
+                                    type="submit"
+                                    class="bg-teal-600 text-white px-4 py-2 rounded hover:bg-teal-700">
+                                    Save
+                                </button>
+                                </div>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+
+                <!-- DELETE DEVICE MODAL -->
+                <div id="deleteDeviceModal-{{ d.device_id }}"
+                     class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center z-50">
+                    <div class="bg-white w-96 rounded-lg p-6">
+                        <h2 class="text-lg font-semibold text-red-600 mb-4">
+                            Delete Device
+                        </h2>
+
+                        <p class="text-gray-600 mb-6">
+                            Are you sure you want to delete
+                            <strong>{{ d.device_type }}</strong>?
+                        </p>
+
+                        <div class="flex justify-end space-x-2">
+                            <button
+                                type="button"
+                                onclick="toggleModal('deleteDeviceModal-{{ d.device_id }}')"
+                                class="border px-4 py-2 rounded">
+                                Cancel
+                            </button>
+
+                            <form method="POST"
+                                  action="{{ url_for('admin.delete_device', device_id=d.device_id) }}">
+                                <button
+                                    type="submit"
+                                    class="bg-red-600 text-white px-4 py-2 rounded hover:bg-red-700">
+                                    Delete
+                                </button>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+
+                {% else %}
+                <tr>
+                    <td colspan="5" class="p-4 text-center text-gray-500">
+                        No devices added yet
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- ADD DEVICE MODAL -->
+<div id="deviceModal"
+     class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center z-50">
+    <div class="bg-white w-96 rounded-lg p-6">
+        <h2 class="text-lg font-semibold text-teal-700 mb-4">Add Device</h2>
+
+        <form method="POST"
+              action="{{ url_for('admin.add_device') }}"
+              class="space-y-4">
+
+            <input
+                name="device_type"
+                placeholder="Device type"
+                required
+                class="w-full border px-3 py-2 rounded">
+
+            <input
+                type="number"
+                step="0.01"
+                name="cost_per_use"
+                placeholder="Cost per use"
+                required
+                class="w-full border px-3 py-2 rounded">
+
+            <input
+                type="number"
+                step="0.01"
+                name="price_per_use"
+                placeholder="Price per use"
+                required
+                class="w-full border px-3 py-2 rounded">
+
+            <select name="status" class="w-full border px-3 py-2 rounded">
+                <option value="operational">Operational</option>
+                <option value="maintenance">Maintenance</option>
+                <option value="broken">Broken</option>
+            </select>
+
+            <div class="flex justify-end space-x-2">
+                <button
+                    type="button"
+                    onclick="toggleModal('deviceModal')"
+                    class="border px-4 py-2 rounded">
+                    Cancel
+                </button>
+
+                <button
+                    type="submit"
+                    class="bg-teal-600 text-white px-4 py-2 rounded hover:bg-teal-700">
+                    Add
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>{% block title %}Admin{% endblock %}</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <script src="https://cdn.tailwindcss.com"></script>
+
+    <script>
+        function toggleSidebar() {
+            document.getElementById("sidebar").classList.toggle("-translate-x-full");
+        }
+
+        function toggleSubmenu(id) {
+            const menu = document.getElementById(id);
+            menu.classList.toggle("max-h-0");
+            menu.classList.toggle("max-h-40");
+        }
+    </script>
+</head>
+
+<body class="bg-gray-100 min-h-screen flex">
+
+<!-- Sidebar -->
+<aside id="sidebar"
+       class="bg-teal-700 text-white w-64 space-y-6 py-7 px-2
+              absolute inset-y-0 left-0 transform -translate-x-full
+              md:relative md:translate-x-0 transition duration-200
+              ease-in-out z-20 overflow-hidden">
+
+    <div class="text-center mb-8">
+        <h1 class="text-2xl font-bold">Hospital Admin</h1>
+    </div>
+
+    <nav>
+        <a href="{{ url_for('admin.dashboard') }}"
+           class="block py-2.5 px-4 rounded hover:bg-teal-800">
+            Dashboard
+        </a>
+
+        <!-- Patients -->
+        <div class="mt-2">
+            <button onclick="toggleSubmenu('patientsMenu')"
+                    class="w-full text-left py-2.5 px-4 rounded hover:bg-teal-800 flex justify-between">
+                Patients <span>▾</span>
+            </button>
+            <div id="patientsMenu"
+                 class="ml-4 mt-1 overflow-hidden max-h-0 transition-all duration-300">
+                <a href="#" class="block py-1 px-2 hover:bg-teal-600 rounded">
+                    Add Patient
+                </a>
+                <a href="#" class="block py-1 px-2 hover:bg-teal-600 rounded">
+                    View Patients
+                </a>
+            </div>
+        </div>
+
+        <!-- Staff -->
+        <div class="mt-2">
+            <button onclick="toggleSubmenu('staffMenu')"
+                    class="w-full text-left py-2.5 px-4 rounded hover:bg-teal-800 flex justify-between">
+                Staff <span>▾</span>
+            </button>
+            <div id="staffMenu"
+                 class="ml-4 mt-1 overflow-hidden max-h-0 transition-all duration-300">
+                <a href="{{ url_for('admin.doctors') }}" class="block py-1 px-2 hover:bg-teal-600 rounded">Doctors</a>
+                <a href="{{ url_for('admin.nurses') }}" class="block py-1 px-2 hover:bg-teal-600 rounded">Nurses</a>
+                <a href="{{ url_for('admin.specializations') }}" class="block py-1 px-2 hover:bg-teal-600 rounded">Specializations</a>
+            </div>
+        </div>
+
+        <!-- Operations -->
+        <div class="mt-2">
+            <button onclick="toggleSubmenu('operationsMenu')"
+                    class="w-full text-left py-2.5 px-4 rounded hover:bg-teal-800 flex justify-between">
+                Operations <span>▾</span>
+            </button>
+            <div id="operationsMenu"
+                 class="ml-4 mt-1 overflow-hidden max-h-0 transition-all duration-300">
+                <a href="{{ url_for('admin.devices') }}" class="block py-1 px-2 hover:bg-teal-600 rounded">Devices</a>
+                <a href="{{ url_for('admin.departments') }}" class="block py-1 px-2 hover:bg-teal-600 rounded">Departments</a>
+                <a href="#" class="block py-1 px-2 hover:bg-teal-600 rounded">Treatments</a>
+            </div>
+        </div>
+
+        <a href="#" class="block py-2.5 px-4 rounded hover:bg-teal-800">
+            Reports
+        </a>
+
+        <a href="#" class="block py-2.5 px-4 rounded hover:bg-teal-800">
+            Transfers
+        </a>
+
+        <a href="{{ url_for('auth.logout') }}"
+           class="block mt-6 py-2.5 px-4 rounded bg-red-600 hover:bg-red-700 text-center font-semibold">
+            Logout
+        </a>
+    </nav>
+</aside>
+
+<!-- Main Area -->
+<div class="flex-1 flex flex-col">
+
+    <!-- Mobile Header -->
+    <header class="bg-white shadow-md p-4 md:hidden flex justify-between items-center">
+        <h1 class="text-xl font-bold text-teal-700">
+            {% block header %}Admin{% endblock %}
+        </h1>
+        <button onclick="toggleSidebar()" class="text-teal-700 text-2xl">&#9776;</button>
+    </header>
+
+    <!-- Page Content -->
+    <main class="p-6">
+        {% block content %}{% endblock %}
+    </main>
+</div>
+<script>
+    function toggleModal(id) {
+    const modal = document.getElementById(id);
+    if (!modal) return;
+
+    modal.classList.toggle("hidden");
+    modal.classList.toggle("flex");
+}
+    function openEditNurseModal(btn) {
+    document.getElementById("edit_name").value = btn.dataset.name;
+    document.getElementById("edit_email").value = btn.dataset.email;
+    document.getElementById("edit_wage").value = btn.dataset.wage;
+    document.getElementById("edit_hours").value = btn.dataset.hours;
+
+    document.getElementById("editNurseForm").action =
+        `/admin/nurses/update/${btn.dataset.id}`;
+
+    toggleModal("editNurseModal");
+}
+</script>
+
+
+</body>
+</html>

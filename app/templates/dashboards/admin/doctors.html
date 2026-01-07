@@ -1,0 +1,133 @@
+{% extends "dashboards/admin/base_admin.html" %}
+
+{% block content %}
+<div class="space-y-8">
+
+    <div class="flex justify-between items-center">
+        <h1 class="text-2xl font-semibold text-teal-700">Doctors</h1>
+        <button onclick="toggleModal('doctorModal')"
+                class="bg-teal-600 text-white px-4 py-2 rounded hover:bg-teal-700">
+            + Add Doctor
+        </button>
+    </div>
+
+    <div class="bg-white shadow rounded-lg overflow-x-auto">
+        <table class="w-full text-sm">
+            <thead class="bg-teal-50 text-teal-700">
+                <tr>
+                    <th class="p-3 text-left">Name</th>
+                    <th class="p-3 text-left">Email</th>
+                    <th class="p-3 text-left">Department</th>
+                    <th class="p-3 text-left">Specialization</th>
+                    <th class="p-3 text-left">Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for d in doctors %}
+                <tr class="border-t">
+                    <td class="p-3">{{ d.name }}</td>
+                    <td class="p-3">{{ d.email }}</td>
+                    <td class="p-3">{{ d.specialization.department.name }}</td>
+                    <td class="p-3">{{ d.specialization.name }}</td>
+                    <td class="p-3 flex space-x-2">
+                        <button onclick="toggleModal('editDoctorModal-{{ d.doctor_id }}')"
+                                class="text-blue-600 hover:underline">Edit</button>
+                        <form method="POST"
+                              action="{{ url_for('admin.delete_doctor', doctor_id=d.doctor_id) }}">
+                            <button class="text-red-600 hover:underline">Delete</button>
+                        </form>
+                    </td>
+                </tr>
+
+                <!-- Edit Modal -->
+                <div id="editDoctorModal-{{ d.doctor_id }}"
+                     class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center z-50">
+                    <div class="bg-white w-96 rounded-lg p-6 space-y-4">
+                        <h2 class="text-lg font-semibold text-teal-700">Edit Doctor</h2>
+
+                        <form method="POST"
+                              action="{{ url_for('admin.update_doctor', doctor_id=d.doctor_id) }}"
+                              class="space-y-4">
+                            <input name="name" value="{{ d.name }}" class="w-full border px-3 py-2 rounded">
+
+                            <select name="specialization_id" class="w-full border px-3 py-2 rounded">
+                                {% for s in d.specialization.department.specializations %}
+                                <option value="{{ s.specialization_id }}"
+                                        {{ 'selected' if s.specialization_id == d.specialization_id }}>
+                                    {{ s.name }}
+                                </option>
+                                {% endfor %}
+                            </select>
+
+                            <div class="flex justify-end space-x-2">
+                                <button type="button"
+                                        onclick="toggleModal('editDoctorModal-{{ d.doctor_id }}')"
+                                        class="border px-4 py-2 rounded">Cancel</button>
+                                <button class="bg-teal-600 text-white px-4 py-2 rounded">Save</button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- Add Doctor Modal -->
+<div id="doctorModal"
+     class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center z-50">
+    <div class="bg-white w-96 rounded-lg p-6 space-y-4">
+        <h2 class="text-lg font-semibold text-teal-700">Add Doctor</h2>
+
+        <form method="POST" action="{{ url_for('admin.add_doctor') }}" class="space-y-4">
+            <input name="name" placeholder="Full name" required class="w-full border px-3 py-2 rounded">
+            <input name="email" type="email" placeholder="Email" required class="w-full border px-3 py-2 rounded">
+            <input name="password" type="password" placeholder="Password" required class="w-full border px-3 py-2 rounded">
+
+            <select id="departmentSelect" class="w-full border px-3 py-2 rounded">
+                <option value="">Select department</option>
+                {% for d in departments %}
+                    <option value="{{ d.department_id }}">{{ d.name }}</option>
+                {% endfor %}
+            </select>
+
+            <select id="specializationSelect"
+                    name="specialization_id"
+                    class="w-full border px-3 py-2 rounded"
+                    disabled>
+                <option>Select specialization</option>
+            </select>
+
+            <div class="flex justify-end space-x-2">
+                <button type="button"
+                        onclick="toggleModal('doctorModal')"
+                        class="border px-4 py-2 rounded">Cancel</button>
+                <button class="bg-teal-600 text-white px-4 py-2 rounded">Add</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+document.getElementById("departmentSelect").addEventListener("change", function () {
+    const deptId = this.value;
+    const specSelect = document.getElementById("specializationSelect");
+
+    specSelect.innerHTML = "<option>Loading...</option>";
+    specSelect.disabled = true;
+
+    if (!deptId) return;
+
+    fetch(`/admin/specializations/by-department/${deptId}`)
+        .then(res => res.json())
+        .then(data => {
+            specSelect.innerHTML = "<option value=''>Select specialization</option>";
+            data.specializations.forEach(s => {
+                specSelect.innerHTML += `<option value="${s.id}">${s.name}</option>`;
+            });
+            specSelect.disabled = false;
+        });
+});
+</script>
+{% endblock %}

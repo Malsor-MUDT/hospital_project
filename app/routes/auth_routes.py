@@ -19,12 +19,13 @@ def admin_login():
             # Save session info
             session["admin_id"] = admin.admin_id
             session["role"] = admin.role
+            session["hospital_id"] = admin.hospital_id
 
             # Redirect based on role
             if admin.role == 1:
-                return redirect(url_for("auth.superadmin_dashboard"))
+                return redirect(url_for("superadmin.dashboard"))
             else:
-                return redirect(url_for("auth.admin_dashboard"))
+                return redirect(url_for("admin.dashboard"))
         else:
             flash("Invalid email or password", "danger")
 
@@ -33,12 +34,12 @@ def admin_login():
 # -------------------------------
 # Superadmin Dashboard
 # -------------------------------
-@auth_bp.route("/superadmin/dashboard")
-def superadmin_dashboard():
-    if session.get("role") != 1:
-        flash("Access denied", "danger")
-        return redirect(url_for("auth.admin_login"))
-    return render_template("dashboards/superadmin_dashboard.html")
+# @auth_bp.route("/superadmin/dashboard")
+# def superadmin_dashboard():
+#     if session.get("role") != 1:
+#         flash("Access denied", "danger")
+#         return redirect(url_for("auth.admin_login"))
+#     return render_template("dashboards/superadmin_dashboard.html")
 
 
 # -------------------------------
@@ -49,7 +50,7 @@ def admin_dashboard():
     if session.get("role") != 0:
         flash("Access denied", "danger")
         return redirect(url_for("auth.admin_login"))
-    return render_template("dashboards/admin_dashboard.html")
+    return render_template("dashboards/admin/admin_dashboard.html")
 
 
 # -------------------------------

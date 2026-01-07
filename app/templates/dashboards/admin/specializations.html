@@ -1,0 +1,83 @@
+{% extends "dashboards/admin/base_admin.html" %}
+
+{% block content %}
+<div class="space-y-8">
+
+    <!-- Header -->
+    <div class="flex justify-between items-center">
+        <h1 class="text-2xl font-semibold text-teal-700">Specializations</h1>
+        <button onclick="toggleModal('specializationModal')" class="bg-teal-600 text-white px-4 py-2 rounded hover:bg-teal-700">
+            + Add Specialization
+        </button>
+    </div>
+
+    <!-- Table -->
+    <div class="bg-white rounded-lg shadow overflow-x-auto">
+        <table class="w-full text-sm">
+            <thead class="bg-teal-50 text-teal-700">
+                <tr>
+                    <th class="p-3 text-left">Name</th>
+                    <th class="p-3 text-left">Department</th>
+                    <th class="p-3 text-left">Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for s in specializations %}
+                <tr class="border-t">
+                    <td class="p-3">{{ s.name }}</td>
+                    <td class="p-3">{{ s.department.name }}</td>
+                    <td class="p-3 space-x-2">
+                        <button onclick="toggleModal('editSpecializationModal-{{ s.specialization_id }}')" class="bg-blue-600 text-white px-2 py-1 rounded hover:bg-yellow-600">Edit</button>
+                        <form method="POST" action="{{ url_for('admin.delete_specialization', specialization_id=s.specialization_id) }}" class="inline">
+                            <button type="submit" class="bg-red-500 text-white px-2 py-1 rounded hover:bg-red-600">Delete</button>
+                        </form>
+                    </td>
+                </tr>
+
+                <!-- Edit Modal -->
+                <div id="editSpecializationModal-{{ s.specialization_id }}" class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center z-50">
+                    <div class="bg-white w-96 rounded-lg p-6">
+                        <h2 class="text-lg font-semibold text-teal-700 mb-4">Edit Specialization</h2>
+                        <form method="POST" action="{{ url_for('admin.update_specialization', specialization_id=s.specialization_id) }}" class="space-y-4">
+                            <input type="text" name="name" value="{{ s.name }}" required class="w-full border px-3 py-2 rounded">
+                            <select name="department_id" class="w-full border px-3 py-2 rounded" required>
+                                {% for d in departments %}
+                                    <option value="{{ d.department_id }}" {% if d.department_id == s.department_id %}selected{% endif %}>
+                                        {{ d.name }}
+                                    </option>
+                                {% endfor %}
+                            </select>
+                            <div class="flex justify-end space-x-2">
+                                <button type="button" onclick="toggleModal('editSpecializationModal-{{ s.specialization_id }}')" class="border px-4 py-2 rounded">Cancel</button>
+                                <button type="submit" class="bg-teal-600 text-white px-4 py-2 rounded hover:bg-teal-700">Save</button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- Add Specialization Modal -->
+<div id="specializationModal" class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center z-50">
+    <div class="bg-white w-96 rounded-lg p-6">
+        <h2 class="text-lg font-semibold text-teal-700 mb-4">Add Specialization</h2>
+        <form method="POST" action="{{ url_for('admin.add_specialization') }}" class="space-y-4">
+            <input type="text" name="name" placeholder="Specialization Name" required class="w-full border px-3 py-2 rounded">
+            <select name="department_id" class="w-full border px-3 py-2 rounded" required>
+                <option value="" disabled selected>Select Department</option>
+                {% for d in departments %}
+                    <option value="{{ d.department_id }}">{{ d.name }}</option>
+                {% endfor %}
+            </select>
+            <div class="flex justify-end space-x-2">
+                <button type="button" onclick="toggleModal('specializationModal')" class="border px-4 py-2 rounded">Cancel</button>
+                <button type="submit" class="bg-teal-600 text-white px-4 py-2 rounded hover:bg-teal-700">Add</button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}
