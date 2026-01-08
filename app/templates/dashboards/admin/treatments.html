@@ -1,0 +1,131 @@
+{% extends "dashboards/admin/base_admin.html" %}
+{% block content %}
+
+<div class="space-y-8">
+
+    <div class="flex justify-between items-center">
+        <h1 class="text-2xl font-semibold text-teal-700">Treatments</h1>
+        <button onclick="toggleModal('addTreatmentModal')"
+                class="bg-teal-600 text-white px-4 py-2 rounded hover:bg-teal-700">
+            + Add Treatment
+        </button>
+    </div>
+
+    <div class="bg-white shadow rounded-lg overflow-x-auto">
+        <table class="w-full text-sm">
+            <thead class="bg-teal-50 text-teal-700">
+                <tr>
+                    <th class="p-3 text-left">Name</th>
+                    <th class="p-3 text-left">Description</th>
+                    <th class="p-3 text-left">Device Required</th>
+                    <th class="p-3 text-left">Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for t in treatments %}
+                <tr class="border-t">
+                    <td class="p-3">{{ t.name }}</td>
+                    <td class="p-3 text-gray-600">{{ t.description or "-" }}</td>
+                    <td class="p-3">
+                        {{ "Yes" if t.requires_device else "No" }}
+                    </td>
+                    <td class="p-3 space-x-2">
+                        <button onclick="toggleModal('editTreatmentModal-{{ t.treatment_id }}')"
+                                class="text-blue-600 hover:underline">
+                            Edit
+                        </button>
+
+                        <form method="POST"
+                              action="{{ url_for('admin.delete_treatment', treatment_id=t.treatment_id) }}"
+                              class="inline">
+                            <button class="text-red-600 hover:underline">
+                                Delete
+                            </button>
+                        </form>
+                    </td>
+                </tr>
+
+                <!-- Edit Modal -->
+                <div id="editTreatmentModal-{{ t.treatment_id }}"
+                     class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center z-50">
+                    <div class="bg-white w-96 rounded-lg p-6 space-y-4">
+                        <h2 class="text-lg font-semibold text-teal-700">Edit Treatment</h2>
+
+                        <form method="POST"
+                              action="{{ url_for('admin.update_treatment', treatment_id=t.treatment_id) }}"
+                              class="space-y-4">
+
+                            <input name="name" value="{{ t.name }}"
+                                   class="w-full border px-3 py-2 rounded" required>
+
+                            <textarea name="description"
+                                      class="w-full border px-3 py-2 rounded"
+                                      rows="3">{{ t.description }}</textarea>
+
+                            <label class="flex items-center space-x-2">
+                                <input type="checkbox" name="requires_device"
+                                       {% if t.requires_device %}checked{% endif %}>
+                                <span>Requires device</span>
+                            </label>
+
+                            <div class="flex justify-end space-x-2">
+                                <button type="button"
+                                        onclick="toggleModal('editTreatmentModal-{{ t.treatment_id }}')"
+                                        class="border px-4 py-2 rounded">
+                                    Cancel
+                                </button>
+                                <button class="bg-teal-600 text-white px-4 py-2 rounded hover:bg-teal-700">
+                                    Save
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+
+                {% else %}
+                <tr>
+                    <td colspan="4" class="p-4 text-center text-gray-500">
+                        No treatments added yet
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- Add Treatment Modal -->
+<div id="addTreatmentModal"
+     class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center z-50">
+    <div class="bg-white w-96 rounded-lg p-6 space-y-4">
+        <h2 class="text-lg font-semibold text-teal-700">Add Treatment</h2>
+
+        <form method="POST" action="{{ url_for('admin.add_treatment') }}" class="space-y-4">
+            <input name="name" placeholder="Treatment name" required
+                   class="w-full border px-3 py-2 rounded">
+
+            <textarea name="description"
+                      placeholder="Description"
+                      rows="3"
+                      class="w-full border px-3 py-2 rounded"></textarea>
+
+            <label class="flex items-center space-x-2">
+                <input type="checkbox" name="requires_device">
+                <span>Requires device</span>
+            </label>
+
+            <div class="flex justify-end space-x-2">
+                <button type="button"
+                        onclick="toggleModal('addTreatmentModal')"
+                        class="border px-4 py-2 rounded">
+                    Cancel
+                </button>
+                <button class="bg-teal-600 text-white px-4 py-2 rounded hover:bg-teal-700">
+                    Add
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+{% endblock %}

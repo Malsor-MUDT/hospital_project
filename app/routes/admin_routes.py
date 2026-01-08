@@ -6,6 +6,8 @@ from app.models.nurse import Nurse
 from app.models.specialization import Specialization
 from app.models.department import Department
 from app.models.doctor import Doctor
+from app.models.treatment import Treatment
+from app.models.patient import Patient
 from app.models.admin import Admin
 import uuid
 
@@ -396,3 +398,127 @@ def specializations_by_department(department_id):
             for s in specs
         ]
     }
+
+
+@admin_bp.route("/treatments")
+def treatments():
+    if session.get("role") != 0:
+        flash("Access denied", "danger")
+        return redirect(url_for("auth.admin_login"))
+
+    treatments = Treatment.query.filter_by(
+        hospital_id=session.get("hospital_id")
+    ).all()
+
+    return render_template(
+        "dashboards/admin/treatments.html",
+        treatments=treatments
+    )
+
+@admin_bp.route("/treatments/add", methods=["POST"])
+def add_treatment():
+    if session.get("role") != 0:
+        flash("Access denied", "danger")
+        return redirect(url_for("auth.admin_login"))
+
+    treatment = Treatment(
+        hospital_id=session["hospital_id"],
+        name=request.form.get("name"),
+        description=request.form.get("description"),
+        requires_device=bool(request.form.get("requires_device"))
+    )
+
+    db.session.add(treatment)
+    db.session.commit()
+
+    flash("Treatment added successfully", "success")
+    return redirect(url_for("admin.treatments"))
+
+@admin_bp.route("/treatments/<int:treatment_id>/update", methods=["POST"])
+def update_treatment(treatment_id):
+    treatment = Treatment.query.get_or_404(treatment_id)
+
+    treatment.name = request.form.get("name")
+    treatment.description = request.form.get("description")
+    treatment.requires_device = bool(request.form.get("requires_device"))
+
+    db.session.commit()
+
+    flash("Treatment updated", "success")
+    return redirect(url_for("admin.treatments"))
+
+
+@admin_bp.route("/treatments/<int:treatment_id>/delete", methods=["POST"])
+def delete_treatment(treatment_id):
+    treatment = Treatment.query.get_or_404(treatment_id)
+
+    db.session.delete(treatment)
+    db.session.commit()
+
+    flash("Treatment deleted", "success")
+    return redirect(url_for("admin.treatments"))
+
+@admin_bp.route("/patients")
+def patients():
+    if session.get("role") != 0:
+        flash("Access denied", "danger")
+        return redirect(url_for("auth.admin_login"))
+
+    patients_list = Patient.query.filter_by(hospital_id=session.get("hospital_id")).all()
+    return render_template("dashboards/admin/patients.html", patients=patients_list)
+
+# ----------------------
+# Add Patient
+# ----------------------
+@admin_bp.route("/patients/add", methods=["POST"])
+def add_patient():
+    if session.get("role") != 0:
+        flash("Access denied", "danger")
+        return redirect(url_for("auth.admin_login"))
+
+    patient = Patient(
+        patient_id=str(uuid.uuid4()),
+        hospital_id=session.get("hospital_id"),
+        name=request.form.get("name"),
+        email=request.form.get("email"),
+        dob=request.form.get("dob")
+    )
+    db.session.add(patient)
+    db.session.commit()
+
+    flash("Patient added successfully", "success")
+    return redirect(url_for("admin.patients"))
+
+# ----------------------
+# Update Patient
+# ----------------------
+@admin_bp.route("/patients/update/<patient_id>", methods=["POST"])
+def update_patient(patient_id):
+    if session.get("role") != 0:
+        flash("Access denied", "danger")
+        return redirect(url_for("auth.admin_login"))
+
+    patient = Patient.query.get_or_404(patient_id)
+    patient.name = request.form.get("name")
+    patient.email = request.form.get("email")
+    patient.dob = request.form.get("dob")
+    db.session.commit()
+
+    flash("Patient updated successfully", "success")
+    return redirect(url_for("admin.patients"))
+
+# ----------------------
+# Delete Patient
+# ----------------------
+@admin_bp.route("/patients/delete/<patient_id>", methods=["POST"])
+def delete_patient(patient_id):
+    if session.get("role") != 0:
+        flash("Access denied", "danger")
+        return redirect(url_for("auth.admin_login"))
+
+    patient = Patient.query.get_or_404(patient_id)
+    db.session.delete(patient)
+    db.session.commit()
+
+    flash("Patient deleted successfully", "success")
+    return redirect(url_for("admin.patients"))

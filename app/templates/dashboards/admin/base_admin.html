@@ -46,10 +46,10 @@
             </button>
             <div id="patientsMenu"
                  class="ml-4 mt-1 overflow-hidden max-h-0 transition-all duration-300">
-                <a href="#" class="block py-1 px-2 hover:bg-teal-600 rounded">
+                <!-- <a href="#" class="block py-1 px-2 hover:bg-teal-600 rounded">
                     Add Patient
-                </a>
-                <a href="#" class="block py-1 px-2 hover:bg-teal-600 rounded">
+                </a> -->
+                <a href="{{ url_for('admin.patients') }}" class="block py-1 px-2 hover:bg-teal-600 rounded">
                     View Patients
                 </a>
             </div>
@@ -79,7 +79,7 @@
                  class="ml-4 mt-1 overflow-hidden max-h-0 transition-all duration-300">
                 <a href="{{ url_for('admin.devices') }}" class="block py-1 px-2 hover:bg-teal-600 rounded">Devices</a>
                 <a href="{{ url_for('admin.departments') }}" class="block py-1 px-2 hover:bg-teal-600 rounded">Departments</a>
-                <a href="#" class="block py-1 px-2 hover:bg-teal-600 rounded">Treatments</a>
+                <a href="{{ url_for('admin.treatments') }}" class="block py-1 px-2 hover:bg-teal-600 rounded">Treatments</a>
             </div>
         </div>
 
