@@ -1,12 +1,17 @@
 from flask import Blueprint, render_template, request, redirect, url_for, flash, session
 from werkzeug.security import check_password_hash
 from app.models.admin import Admin
+from app.models.doctor import Doctor
 
 auth_bp = Blueprint("auth", __name__)
 
 # -------------------------------
 # Admin / Superadmin Login
 # -------------------------------
+@auth_bp.route("/")
+def index():
+    return render_template("index.html")
+
 @auth_bp.route("/admin/login", methods=["GET", "POST"])
 def admin_login():
     if request.method == "POST":
@@ -52,6 +57,24 @@ def admin_dashboard():
         return redirect(url_for("auth.admin_login"))
     return render_template("dashboards/admin/admin_dashboard.html")
 
+@auth_bp.route("/doctor/login", methods=["GET", "POST"])
+def doctor_login():
+    if request.method == "POST":
+        email = request.form.get("email")
+        password = request.form.get("password")
+
+        doctor = Doctor.query.filter_by(email=email).first()
+
+        if doctor and check_password_hash(doctor.password, password):
+            session["doctor_id"] = doctor.doctor_id
+            session["hospital_id"] = doctor.hospital_id
+            session["role"] = "doctor"
+
+            return redirect(url_for("doctor.dashboard"))
+        else:
+            flash("Invalid email or password", "danger")
+
+    return render_template("login_doctor.html")
 
 # -------------------------------
 # Logout Route

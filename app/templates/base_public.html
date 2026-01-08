@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Hospital System{% endblock %}</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-teal-50 min-h-screen flex flex-col">
+
+    <!-- Navbar -->
+    <nav class="bg-teal-700 text-white px-6 py-4 flex justify-between items-center shadow">
+        <a href="{{ url_for('main.index') }}" class=" font-bold text-xl">Hospital System</a>
+        <div class="space-x-4">
+            <a href="{{ url_for('auth.admin_login') }}" class=" hover:text-gray-300 font-medium">Admin Login</a>
+            <a href="{{ url_for('auth.doctor_login') }}" class=" hover:text-gray-300 font-medium">Doctor Login</a>
+        </div>
+    </nav>
+
+    <!-- Page Content -->
+    <div class="flex-grow flex items-center justify-center">
+        {% block content %}{% endblock %}
+    </div>
+
+</body>
+</html>

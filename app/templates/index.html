@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Hospital Management System</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-50 min-h-screen flex flex-col">
+
+    <!-- Navbar -->
+    <nav class="bg-teal-700 text-white px-6 py-4 flex justify-between items-center shadow">
+        <div class="text-xl font-semibold">Hospital Management System</div>
+        <div class="space-x-4">
+            <a href="{{ url_for('auth.admin_login') }}" class="hover:text-gray-300">Admin Login</a>
+            <a href="{{ url_for('auth.doctor_login') }}" class="hover:text-gray-300">Doctor Login</a>
+        </div>
+    </nav>
+
+    <!-- Main Content -->
+    <main class="flex-1 flex flex-col justify-center items-center text-center px-6">
+        <h1 class="text-4xl md:text-5xl font-bold text-teal-700 mb-6">Welcome to Hospital Management</h1>
+        <p class="text-gray-700 mb-8">Manage your hospital efficiently and securely</p>
+        <div class="space-x-4">
+            <a href="{{ url_for('auth.admin_login') }}" class="bg-teal-600 hover:bg-teal-700 text-white px-6 py-3 rounded-lg font-medium">Admin Login</a>
+            <a href="{{ url_for('auth.doctor_login') }}" class="bg-teal-600 hover:bg-teal-700 text-white px-6 py-3 rounded-lg font-medium">Doctor Login</a>
+        </div>
+    </main>
+
+    <!-- Footer -->
+    <footer class="bg-teal-700 text-white text-center py-4">
+        &copy; {{ 2026 }} Hospital Management System
+    </footer>
+
+</body>
+</html>
