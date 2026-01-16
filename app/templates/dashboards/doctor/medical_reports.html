@@ -1,0 +1,50 @@
+{% extends "dashboards/doctor/base_doctor.html" %}
+
+{% block content %}
+<div class="space-y-6">
+
+    <h1 class="text-2xl font-semibold text-teal-700">My Medical Reports</h1>
+
+    {% if reports %}
+        <div class="bg-white shadow rounded-lg overflow-x-auto">
+            <table class="w-full text-sm">
+                <thead class="bg-teal-50 text-teal-700">
+                    <tr>
+                        <th class="p-3 text-left">Patient Name</th>
+                        <th class="p-3 text-left">Symptoms</th>
+                        <th class="p-3 text-left">Diagnosis</th>
+                        <th class="p-3 text-left">Treatment Required</th>
+                        <th class="p-3 text-left">Created At</th>
+                        <th class="p-3 text-left">Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for r in reports %}
+                        <tr class="border-t">
+                            <td class="p-3">{{ r.patient.name }}</td>
+                            <td class="p-3">{{ r.symptoms }}</td>
+                            <td class="p-3">{{ r.diagnosis }}</td>
+                            <td class="p-3">
+                                {% if r.treatment_required %}
+                                    <span class="text-yellow-700 font-medium">Yes</span>
+                                {% else %}
+                                    <span class="text-green-700 font-medium">No</span>
+                                {% endif %}
+                            </td>
+                            <td class="p-3">{{ r.created_at.strftime("%Y-%m-%d %H:%M") }}</td>
+                            <td class="p-3 flex space-x-2">
+                                <a href="{{ url_for('doctor.select_treatment', report_id=r.report_id) }}" class="text-blue-600 hover:underline">
+                                    Assign/Update Treatment
+                                </a>
+                            </td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    {% else %}
+        <p class="text-gray-500">You haven’t created any reports yet.</p>
+    {% endif %}
+
+</div>
+{% endblock %}

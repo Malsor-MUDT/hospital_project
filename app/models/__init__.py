@@ -7,4 +7,5 @@ from app.models.device import Device
 from app.models.doctor import Doctor
 from app.models.nurse import Nurse
 from app.models.department import Department
+from .medical_report import MedicalReport
 

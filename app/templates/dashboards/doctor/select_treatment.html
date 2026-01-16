@@ -1,0 +1,47 @@
+{% extends "dashboards/doctor/base_doctor.html" %}
+
+{% block content %}
+<h2 class="text-teal-700 text-2xl font-semibold mb-4">Assign Treatment for {{ report.patient.name }}</h2>
+
+<form method="POST" class="space-y-4">
+    <label>Treatment</label>
+    <select name="treatment_id" id="treatmentSelect" required class="border px-3 py-2 rounded w-full">
+        <option value="">Select Treatment</option>
+        {% for t in treatments %}
+        <option value="{{ t.treatment_id }}" data-requires-device="{{ '1' if t.requires_device else '0' }}">
+            {{ t.name }}
+        </option>
+        {% endfor %}
+    </select>
+
+    <!-- Device dropdown, initially hidden -->
+    <div id="deviceContainer" class="hidden">
+        <label>Device</label>
+        <select name="device_id" class="border px-3 py-2 rounded w-full">
+            <option value="">Select Device</option>
+            {% for d in devices %}
+            <option value="{{ d.device_id }}">{{ d.device_type }}</option>
+            {% endfor %}
+        </select>
+    </div>
+
+    <label>Notes</label>
+    <textarea name="notes" class="border px-3 py-2 rounded w-full" placeholder="Add notes"></textarea>
+
+    <button type="submit" class="bg-teal-600 text-white px-4 py-2 rounded">Assign Treatment</button>
+</form>
+
+<script>
+document.getElementById('treatmentSelect').addEventListener('change', function () {
+    const selectedOption = this.options[this.selectedIndex];
+    const requiresDevice = selectedOption.getAttribute('data-requires-device') === '1';
+    const deviceContainer = document.getElementById('deviceContainer');
+
+    if (requiresDevice) {
+        deviceContainer.classList.remove('hidden');
+    } else {
+        deviceContainer.classList.add('hidden');
+    }
+});
+</script>
+{% endblock %}

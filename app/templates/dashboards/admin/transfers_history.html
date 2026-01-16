@@ -1,0 +1,315 @@
+{% extends "dashboards/admin/base_admin.html" %}
+
+{% block content %}
+<div class="p-6">
+    <h1 class="text-3xl font-bold text-teal-700 mb-6">Transfers History</h1>
+    
+    <!-- Tabs Navigation -->
+    <div class="mb-8 border-b border-gray-200">
+        <nav class="-mb-px flex space-x-8">
+            <button onclick="showTab('incoming')" 
+                    id="tab-incoming"
+                    class="tab-button py-4 px-1 border-b-2 font-medium text-sm transition-all duration-200 border-teal-500 text-teal-600">
+                <i class="fas fa-inbox mr-2"></i>Incoming Transfers
+                <span class="ml-2 bg-teal-100 text-teal-800 text-xs font-semibold px-2 py-1 rounded-full">
+                    {{ incoming|length }}
+                </span>
+            </button>
+            <button onclick="showTab('outgoing')" 
+                    id="tab-outgoing"
+                    class="tab-button py-4 px-1 border-b-2 font-medium text-sm border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300">
+                <i class="fas fa-paper-plane mr-2"></i>Outgoing Transfers
+                <span class="ml-2 bg-gray-100 text-gray-800 text-xs font-semibold px-2 py-1 rounded-full">
+                    {{ outgoing|length }}
+                </span>
+            </button>
+        </nav>
+    </div>
+
+    <!-- Incoming Transfers Tab -->
+    <div id="tab-content-incoming" class="tab-content">
+        {% if incoming %}
+        <div class="bg-white rounded-xl shadow overflow-hidden">
+            <table class="min-w-full divide-y divide-gray-200">
+                <thead class="bg-gray-50">
+                    <tr>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Patient
+                        </th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            From Hospital
+                        </th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Department
+                        </th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Status
+                        </th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Transfer Date
+                        </th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Integrity Check
+                        </th>
+                    </tr>
+                </thead>
+                <tbody class="bg-white divide-y divide-gray-200">
+                    {% for transfer, dept_name, source_hospital_name, patient_name in incoming %}
+                    <tr class="hover:bg-gray-50 transition-colors">
+                        <td class="px-6 py-4 whitespace-nowrap">
+                            <div class="flex items-center">
+                                <div class="flex-shrink-0 h-10 w-10 bg-teal-100 rounded-full flex items-center justify-center">
+                                    <i class="fas fa-user text-teal-600"></i>
+                                </div>
+                                <div class="ml-4">
+                                    <div class="text-sm font-medium text-gray-900">
+                                        {{ patient_name }}
+                                    </div>
+                                    <div class="text-sm text-gray-500">
+                                        {{ transfer.patient_id[:8] }}...
+                                    </div>
+                                </div>
+                            </div>
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap">
+                            <div class="text-sm text-gray-900">{{ source_hospital_name }}</div>
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap">
+                            <span class="px-3 py-1 inline-flex text-xs leading-5 font-semibold rounded-full bg-blue-100 text-blue-800">
+                                {{ dept_name }}
+                            </span>
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap">
+                            {% set status_display = format_status(transfer.transfer_status) %}
+                            <span class="px-3 py-1 inline-flex text-xs leading-5 font-semibold rounded-full {{ status_display[1] }}">
+                                {{ status_display[0] }}
+                            </span>
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                            {{ transfer.transferred_at.strftime('%Y-%m-%d %H:%M') if transfer.transferred_at else 'N/A' }}
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm">
+                            {% if transfer.checksum_original and transfer.checksum_verified %}
+                                {% if transfer.checksum_original == transfer.checksum_verified %}
+                                    <span class="text-green-600">
+                                        <i class="fas fa-check-circle mr-1"></i>Verified
+                                    </span>
+                                {% else %}
+                                    <span class="text-red-600">
+                                        <i class="fas fa-times-circle mr-1"></i>Failed
+                                    </span>
+                                {% endif %}
+                            {% elif transfer.transfer_status == 'pending' %}
+                                <span class="text-yellow-600">
+                                    <i class="fas fa-clock mr-1"></i>Pending
+                                </span>
+                            {% else %}
+                                <span class="text-gray-500">
+                                    <i class="fas fa-minus mr-1"></i>N/A
+                                </span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <div class="text-center py-12">
+            <div class="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-gray-100 mb-4">
+                <i class="fas fa-inbox text-gray-400 text-xl"></i>
+            </div>
+            <h3 class="text-lg font-medium text-gray-900 mb-1">No incoming transfers</h3>
+            <p class="text-gray-500">No hospitals have transferred patients to you yet.</p>
+        </div>
+        {% endif %}
+    </div>
+
+    <!-- Outgoing Transfers Tab -->
+    <div id="tab-content-outgoing" class="tab-content hidden">
+        {% if outgoing %}
+        <div class="bg-white rounded-xl shadow overflow-hidden">
+            <table class="min-w-full divide-y divide-gray-200">
+                <thead class="bg-gray-50">
+                    <tr>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Patient
+                        </th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            To Hospital
+                        </th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Department
+                        </th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Status
+                        </th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Transfer Date
+                        </th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Actions
+                        </th>
+                    </tr>
+                </thead>
+                <tbody class="bg-white divide-y divide-gray-200">
+                    {% for transfer, dept_name, target_hospital_name, patient_name in outgoing %}
+                    <tr class="hover:bg-gray-50 transition-colors">
+                        <td class="px-6 py-4 whitespace-nowrap">
+                            <div class="flex items-center">
+                                <div class="flex-shrink-0 h-10 w-10 bg-teal-100 rounded-full flex items-center justify-center">
+                                    <i class="fas fa-user text-teal-600"></i>
+                                </div>
+                                <div class="ml-4">
+                                    <div class="text-sm font-medium text-gray-900">
+                                        {{ patient_name }}
+                                    </div>
+                                    <div class="text-sm text-gray-500">
+                                        {{ transfer.patient_id[:8] }}...
+                                    </div>
+                                </div>
+                            </div>
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap">
+                            <div class="text-sm text-gray-900">{{ target_hospital_name }}</div>
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap">
+                            <span class="px-3 py-1 inline-flex text-xs leading-5 font-semibold rounded-full bg-blue-100 text-blue-800">
+                                {{ dept_name }}
+                            </span>
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap">
+                            {% set status_display = format_status(transfer.transfer_status) %}
+                            <span class="px-3 py-1 inline-flex text-xs leading-5 font-semibold rounded-full {{ status_display[1] }}">
+                                {{ status_display[0] }}
+                            </span>
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                            {{ transfer.transferred_at.strftime('%Y-%m-%d %H:%M') if transfer.transferred_at else 'N/A' }}
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm">
+                            {% if transfer.transfer_status == 'pending' %}
+                                <span class="text-yellow-600">
+                                    <i class="fas fa-clock mr-1"></i>Waiting for response
+                                </span>
+                            {% elif transfer.transfer_status == 'verified' %}
+                                <span class="text-green-600">
+                                    <i class="fas fa-check mr-1"></i>Accepted
+                                </span>
+                            {% elif transfer.transfer_status == 'rejected' %}
+                                <span class="text-red-600">
+                                    <i class="fas fa-times mr-1"></i>Rejected
+                                </span>
+                            {% elif transfer.transfer_status == 'failed' %}
+                                <span class="text-red-600">
+                                    <i class="fas fa-exclamation-triangle mr-1"></i>Failed
+                                </span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <div class="text-center py-12">
+            <div class="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-gray-100 mb-4">
+                <i class="fas fa-paper-plane text-gray-400 text-xl"></i>
+            </div>
+            <h3 class="text-lg font-medium text-gray-900 mb-1">No outgoing transfers</h3>
+            <p class="text-gray-500">You haven't transferred any patients to other hospitals yet.</p>
+            <a href="{{ url_for('admin.transfer_patient') }}" 
+               class="mt-4 inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-teal-600 hover:bg-teal-700">
+                <i class="fas fa-exchange-alt mr-2"></i>Transfer a Patient
+            </a>
+        </div>
+        {% endif %}
+    </div>
+
+    <!-- Stats Summary -->
+    <div class="mt-8 grid grid-cols-1 md:grid-cols-4 gap-6">
+        <div class="bg-white p-6 rounded-xl shadow">
+            <div class="flex items-center">
+                <div class="flex-shrink-0 bg-teal-100 p-3 rounded-lg">
+                    <i class="fas fa-inbox text-teal-600 text-xl"></i>
+                </div>
+                <div class="ml-4">
+                    <p class="text-sm font-medium text-gray-600">Incoming</p>
+                    <p class="text-2xl font-semibold text-gray-900">{{ incoming|length }}</p>
+                </div>
+            </div>
+        </div>
+        <div class="bg-white p-6 rounded-xl shadow">
+            <div class="flex items-center">
+                <div class="flex-shrink-0 bg-blue-100 p-3 rounded-lg">
+                    <i class="fas fa-paper-plane text-blue-600 text-xl"></i>
+                </div>
+                <div class="ml-4">
+                    <p class="text-sm font-medium text-gray-600">Outgoing</p>
+                    <p class="text-2xl font-semibold text-gray-900">{{ outgoing|length }}</p>
+                </div>
+            </div>
+        </div>
+        <div class="bg-white p-6 rounded-xl shadow">
+            <div class="flex items-center">
+                <div class="flex-shrink-0 bg-green-100 p-3 rounded-lg">
+                    <i class="fas fa-check-circle text-green-600 text-xl"></i>
+                </div>
+                <div class="ml-4">
+                    <p class="text-sm font-medium text-gray-600">Verified</p>
+                    <p class="text-2xl font-semibold text-gray-900">
+                        {{ incoming|selectattr('0.transfer_status', 'equalto', 'verified')|list|length }}
+                    </p>
+                </div>
+            </div>
+        </div>
+        <div class="bg-white p-6 rounded-xl shadow">
+            <div class="flex items-center">
+                <div class="flex-shrink-0 bg-red-100 p-3 rounded-lg">
+                    <i class="fas fa-times-circle text-red-600 text-xl"></i>
+                </div>
+                <div class="ml-4">
+                    <p class="text-sm font-medium text-gray-600">Failed/Rejected</p>
+                    <p class="text-2xl font-semibold text-gray-900">
+                        {{ (incoming|selectattr('0.transfer_status', 'equalto', 'failed')|list|length) + 
+                           (incoming|selectattr('0.transfer_status', 'equalto', 'rejected')|list|length) }}
+                    </p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    .tab-content {
+        transition: opacity 0.3s ease;
+    }
+</style>
+
+<script>
+    function showTab(tabName) {
+        // Hide all tab contents
+        document.querySelectorAll('.tab-content').forEach(tab => {
+            tab.classList.add('hidden');
+        });
+        
+        // Remove active styles from all tabs
+        document.querySelectorAll('.tab-button').forEach(button => {
+            button.classList.remove('border-teal-500', 'text-teal-600');
+            button.classList.add('border-transparent', 'text-gray-500');
+        });
+        
+        // Show selected tab content
+        document.getElementById(`tab-content-${tabName}`).classList.remove('hidden');
+        
+        // Add active styles to selected tab
+        document.getElementById(`tab-${tabName}`).classList.remove('border-transparent', 'text-gray-500');
+        document.getElementById(`tab-${tabName}`).classList.add('border-teal-500', 'text-teal-600');
+    }
+    
+    // Show incoming tab by default
+    document.addEventListener('DOMContentLoaded', function() {
+        showTab('incoming');
+    });
+</script>
+{% endblock %}

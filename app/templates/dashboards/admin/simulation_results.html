@@ -1,0 +1,517 @@
+{% extends "dashboards/admin/base_admin.html" %}
+
+{% block content %}
+<div class="p-6 space-y-6">
+    
+    <!-- Header with Back Button -->
+    <div class="flex justify-between items-center">
+        <div>
+            <h1 class="text-2xl font-semibold text-teal-700">Simulation Results</h1>
+            <p class="text-gray-600">Simulation ID: {{ simulation.simulation_id }}</p>
+            <p class="text-sm text-gray-500">
+                Run on: {{ simulation.simulation_date.strftime('%Y-%m-%d %H:%M') }}
+            </p>
+        </div>
+        <div class="flex space-x-2">
+            <a href="{{ url_for('admin.simulations') }}"
+               class="px-4 py-2 bg-gray-600 hover:bg-gray-700 text-white rounded">
+                <i class="fas fa-arrow-left mr-2"></i>Back
+            </a>
+            <button onclick="window.print()"
+                    class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded">
+                <i class="fas fa-print mr-2"></i>Print
+            </button>
+        </div>
+    </div>
+    
+    <!-- Simulation Summary -->
+    <div class="bg-white shadow rounded-lg p-6">
+        <h2 class="text-xl font-semibold text-teal-700 mb-4">Simulation Summary</h2>
+        
+        <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+            <div class="p-4 bg-teal-50 rounded-lg">
+                <div class="text-sm text-teal-700">Total Devices</div>
+                <div class="text-2xl font-bold">{{ results|length }}</div>
+            </div>
+            
+            <div class="p-4 bg-green-50 rounded-lg">
+                <div class="text-sm text-green-700">Total Expected Revenue</div>
+                <div class="text-2xl font-bold">
+                    ${{ "%.2f"|format(results|sum(attribute='expected_revenue')) }}
+                </div>
+            </div>
+            
+            <div class="p-4 bg-blue-50 rounded-lg">
+                <div class="text-sm text-blue-700">Total Expected Profit</div>
+                <div class="text-2xl font-bold">
+                    ${{ "%.2f"|format(results|sum(attribute='expected_profit')) }}
+                </div>
+            </div>
+            
+            <div class="p-4 bg-orange-50 rounded-lg">
+                <div class="text-sm text-orange-700">Devices at Risk</div>
+                <div class="text-2xl font-bold">
+                    {{ results|selectattr('probability_loss', 'gt', 0.3)|list|length }}
+                </div>
+            </div>
+        </div>
+        
+        <!-- Key Metrics Table -->
+        <div class="overflow-x-auto">
+            <table class="w-full text-sm">
+                <thead class="bg-gray-50">
+                    <tr>
+                        <th class="p-3 text-left">Device</th>
+                        <th class="p-3 text-left">Expected Uses</th>
+                        <th class="p-3 text-left">Revenue</th>
+                        <th class="p-3 text-left">Cost</th>
+                        <th class="p-3 text-left">Profit</th>
+                        <th class="p-3 text-left">Margin</th>
+                        <th class="p-3 text-left">Risk</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-gray-200">
+                    {% for result in results %}
+                    {% set margin = (result.expected_profit / result.expected_revenue * 100) if result.expected_revenue > 0 else 0 %}
+                    <tr class="hover:bg-gray-50">
+                        <td class="p-3 font-medium">{{ result.device_name }}</td>
+                        <td class="p-3">{{ "%.0f"|format(result.expected_treatments) }}</td>
+                        <td class="p-3">${{ "%.2f"|format(result.expected_revenue) }}</td>
+                        <td class="p-3">${{ "%.2f"|format(result.expected_cost) }}</td>
+                        <td class="p-3">
+                            <span class="{% if result.expected_profit >= 0 %}text-green-700{% else %}text-red-700{% endif %}">
+                                ${{ "%.2f"|format(result.expected_profit) }}
+                            </span>
+                        </td>
+                        <td class="p-3">
+                            <span class="{% if margin >= 20 %}text-green-700{% elif margin >= 10 %}text-yellow-700{% else %}text-red-700{% endif %}">
+                                {{ "%.1f"|format(margin) }}%
+                            </span>
+                        </td>
+                        <td class="p-3">
+                            {% if result.risk_level == 'high' %}
+                                <span class="px-2 py-1 text-xs font-medium bg-red-100 text-red-800 rounded">High</span>
+                            {% elif result.risk_level == 'medium' %}
+                                <span class="px-2 py-1 text-xs font-medium bg-yellow-100 text-yellow-800 rounded">Medium</span>
+                            {% else %}
+                                <span class="px-2 py-1 text-xs font-medium bg-green-100 text-green-800 rounded">Low</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+    
+    <!-- Charts Section -->
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <!-- Revenue vs Profit Chart -->
+        <div class="bg-white shadow rounded-lg p-6">
+            <h2 class="text-lg font-semibold text-teal-700 mb-4">Revenue vs Profit by Device</h2>
+            <canvas id="revenueProfitChart" class="w-full h-64"></canvas>
+        </div>
+        
+        <!-- Cost Breakdown Chart -->
+        <div class="bg-white shadow rounded-lg p-6">
+            <h2 class="text-lg font-semibold text-teal-700 mb-4">Cost Structure</h2>
+            <canvas id="costChart" class="w-full h-64"></canvas>
+        </div>
+    </div>
+    
+    <!-- Detailed Analysis -->
+    <div class="bg-white shadow rounded-lg p-6">
+        <h2 class="text-xl font-semibold text-teal-700 mb-4">Detailed Device Analysis</h2>
+        
+        {% for result in results %}
+        <div class="mb-6 p-4 border rounded-lg hover:bg-gray-50">
+            <div class="flex justify-between items-start mb-3">
+                <h3 class="text-lg font-medium text-teal-700">{{ result.device_name }}</h3>
+                <span class="px-3 py-1 text-sm rounded-full 
+                    {% if result.risk_level == 'high' %}bg-red-100 text-red-800
+                    {% elif result.risk_level == 'medium' %}bg-yellow-100 text-yellow-800
+                    {% else %}bg-green-100 text-green-800{% endif %}">
+                    {{ result.risk_level|title }} Risk
+                </span>
+            </div>
+            
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+                <div class="p-3 bg-blue-50 rounded">
+                    <div class="text-sm text-blue-700">Expected Monthly Uses</div>
+                    <div class="text-xl font-bold">{{ "%.0f"|format(result.expected_treatments) }}</div>
+                    <div class="text-xs text-gray-500 mt-1">
+                        95% CI: {{ "%.0f"|format(result.treatment_ci[0]) }} - {{ "%.0f"|format(result.treatment_ci[1]) }}
+                    </div>
+                </div>
+                
+                <div class="p-3 bg-green-50 rounded">
+                    <div class="text-sm text-green-700">Monthly Profit</div>
+                    <div class="text-xl font-bold">${{ "%.2f"|format(result.expected_profit) }}</div>
+                    <div class="text-xs text-gray-500 mt-1">
+                        95% CI: ${{ "%.2f"|format(result.profit_ci[0]) }} - ${{ "%.2f"|format(result.profit_ci[1]) }}
+                    </div>
+                </div>
+                
+                <div class="p-3 bg-purple-50 rounded">
+                    <div class="text-sm text-purple-700">Breakeven Point</div>
+                    <div class="text-xl font-bold">{{ "%.0f"|format(result.breakeven_treatments) }} uses</div>
+                    <div class="text-xs text-gray-500 mt-1">
+                        {% if result.breakeven_treatments < result.expected_treatments %}
+                            ✓ Above breakeven
+                        {% else %}
+                            ✗ Below breakeven
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+            
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                    <h4 class="text-sm font-medium text-gray-700 mb-2">Pricing Information</h4>
+                    <div class="space-y-1 text-sm">
+                        <div class="flex justify-between">
+                            <span class="text-gray-600">Current Price:</span>
+                            <span class="font-medium">${{ "%.2f"|format(result.current_price) }}</span>
+                        </div>
+                        <div class="flex justify-between">
+                            <span class="text-gray-600">Variable Cost/Use:</span>
+                            <span class="font-medium">${{ "%.2f"|format(result.variable_cost_per_use) }}</span>
+                        </div>
+                        <div class="flex justify-between">
+                            <span class="text-gray-600">Fixed Monthly Cost:</span>
+                            <span class="font-medium">${{ "%.2f"|format(result.fixed_monthly_cost) }}</span>
+                        </div>
+                        <div class="flex justify-between">
+                            <span class="text-gray-600">Gross Margin:</span>
+                            <span class="font-medium {% if result.gross_margin >= 0.2 %}text-green-700{% elif result.gross_margin >= 0.1 %}text-yellow-700{% else %}text-red-700{% endif %}">
+                                {{ "%.1f"|format(result.gross_margin * 100) }}%
+                            </span>
+                        </div>
+                    </div>
+                </div>
+                
+                <div>
+                    <h4 class="text-sm font-medium text-gray-700 mb-2">Risk Assessment</h4>
+                    <div class="space-y-1 text-sm">
+                        <div class="flex justify-between">
+                            <span class="text-gray-600">Probability of Loss:</span>
+                            <span class="font-medium {% if result.probability_loss < 0.1 %}text-green-700{% elif result.probability_loss < 0.3 %}text-yellow-700{% else %}text-red-700{% endif %}">
+                                {{ "%.1f"|format(result.probability_loss * 100) }}%
+                            </span>
+                        </div>
+                        <div class="flex justify-between">
+                            <span class="text-gray-600">Confidence Level:</span>
+                            <span class="font-medium">95%</span>
+                        </div>
+                        <div class="flex justify-between">
+                            <span class="text-gray-600">Simulation Runs:</span>
+                            <span class="font-medium">{{ parameters.simulation_runs }}</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    
+    <!-- Recommendations -->
+    {% if recommendations %}
+    <div class="bg-white shadow rounded-lg p-6">
+        <div class="flex items-center justify-between mb-4">
+            <h2 class="text-xl font-semibold text-teal-700">Price Optimization Recommendations</h2>
+            <span class="px-3 py-1 bg-teal-100 text-teal-800 text-sm rounded-full">
+                {{ recommendations|length }} recommendations
+            </span>
+        </div>
+        
+        {% for rec in recommendations %}
+        <div class="mb-4 p-4 border rounded-lg {% if rec.urgency == 'high' %}bg-red-50 border-red-200{% elif rec.urgency == 'medium' %}bg-yellow-50 border-yellow-200{% else %}bg-blue-50 border-blue-200{% endif %}">
+            <div class="flex justify-between items-start">
+                <div>
+                    <h3 class="font-medium text-gray-900">{{ rec.device_name }}</h3>
+                    <div class="mt-1 text-sm text-gray-600">
+                        Current: ${{ "%.2f"|format(rec.current_price) }} ({{ "%.1f"|format(rec.current_margin_pct) }}% margin)
+                        → Target: {{ "%.1f"|format(rec.target_margin_pct) }}% margin
+                    </div>
+                </div>
+                <div class="text-right">
+                    <div class="text-lg font-bold text-teal-700">
+                        ${{ "%.2f"|format(rec.recommended_price) }}
+                    </div>
+                    <div class="text-sm {% if rec.price_change_pct > 0 %}text-red-600{% else %}text-green-600{% endif %}">
+                        {{ "%+.1f"|format(rec.price_change_pct) }}%
+                    </div>
+                </div>
+            </div>
+            
+            <div class="mt-3 grid grid-cols-1 md:grid-cols-3 gap-3">
+                <div class="p-2 bg-white rounded">
+                    <div class="text-xs text-gray-500">Expected Demand Change</div>
+                    <div class="text-sm font-medium {% if rec.expected_demand_change_pct < 0 %}text-red-600{% else %}text-green-600{% endif %}">
+                        {{ "%+.1f"|format(rec.expected_demand_change_pct) }}%
+                    </div>
+                </div>
+                
+                <div class="p-2 bg-white rounded">
+                    <div class="text-xs text-gray-500">Expected Profit Change</div>
+                    <div class="text-sm font-medium {% if rec.expected_profit_change_pct > 0 %}text-green-600{% else %}text-red-600{% endif %}">
+                        {{ "%+.1f"|format(rec.expected_profit_change_pct) }}%
+                    </div>
+                </div>
+                
+                <div class="p-2 bg-white rounded">
+                    <div class="text-xs text-gray-500">Feasibility</div>
+                    <div class="text-sm font-medium">
+                        {% if rec.feasibility == 'high' %}
+                            <span class="text-green-600">High</span>
+                        {% elif rec.feasibility == 'medium' %}
+                            <span class="text-yellow-600">Medium</span>
+                        {% else %}
+                            <span class="text-red-600">Low</span>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+            
+            <div class="mt-3 text-xs text-gray-600">
+                <i class="fas fa-info-circle mr-1"></i>
+                {% if rec.urgency == 'high' %}
+                    Urgent: Margin below 10% significantly increases financial risk
+                {% elif rec.urgency == 'medium' %}
+                    Recommended: Improve margin to sustainable levels
+                {% else %}
+                    Optional: Fine-tune pricing for optimal profitability
+                {% endif %}
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    {% endif %}
+    
+    <!-- Variables Explanation -->
+    <div class="bg-white shadow rounded-lg p-6">
+        <h2 class="text-xl font-semibold text-teal-700 mb-4">Understanding the Variables</h2>
+        
+        <div class="space-y-4">
+            <!-- Seasonality Factor -->
+            <div class="p-4 bg-blue-50 rounded-lg">
+                <h3 class="font-medium text-blue-800 mb-2">
+                    <i class="fas fa-sun mr-2"></i>Seasonality Factor
+                </h3>
+                <p class="text-sm text-gray-700 mb-2">
+                    Adjusts treatment volume based on seasonal patterns in healthcare demand.
+                </p>
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-2 text-xs">
+                    <div class="p-2 bg-white rounded">
+                        <div class="font-medium">0.8× - 0.9×</div>
+                        <div class="text-gray-600">Low season (winter holidays)</div>
+                    </div>
+                    <div class="p-2 bg-white rounded">
+                        <div class="font-medium">1.0×</div>
+                        <div class="text-gray-600">Normal month</div>
+                    </div>
+                    <div class="p-2 bg-white rounded">
+                        <div class="font-medium">1.1× - 1.2×</div>
+                        <div class="text-gray-600">High season (summer/spring)</div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Utilization Rate -->
+            <div class="p-4 bg-green-50 rounded-lg">
+                <h3 class="font-medium text-green-800 mb-2">
+                    <i class="fas fa-chart-line mr-2"></i>Utilization Rate
+                </h3>
+                <p class="text-sm text-gray-700 mb-2">
+                    What percentage of total treatments use this specific device.
+                </p>
+                <div class="text-xs text-gray-600">
+                    <strong>Formula:</strong> Device Uses / Total Treatments<br>
+                    <strong>Example:</strong> If MRI is used in 30% of treatments, utilization = 0.3
+                </div>
+            </div>
+            
+            <!-- Profit Margin -->
+            <div class="p-4 bg-purple-50 rounded-lg">
+                <h3 class="font-medium text-purple-800 mb-2">
+                    <i class="fas fa-percentage mr-2"></i>Profit Margin
+                </h3>
+                <p class="text-sm text-gray-700 mb-2">
+                    Percentage of revenue that becomes profit after all costs.
+                </p>
+                <div class="text-xs text-gray-600">
+                    <strong>Formula:</strong> (Price - Variable Cost) ÷ Price × 100%<br>
+                    <strong>Healthcare Targets:</strong>
+                    <ul class="mt-1 space-y-1">
+                        <li>• < 10%: Unsustainable (High Risk)</li>
+                        <li>• 10-15%: Acceptable (Medium Risk)</li>
+                        <li>• 15-25%: Healthy (Low Risk)</li>
+                        <li>• > 25%: Excellent</li>
+                    </ul>
+                </div>
+            </div>
+            
+            <!-- Breakeven Point -->
+            <div class="p-4 bg-orange-50 rounded-lg">
+                <h3 class="font-medium text-orange-800 mb-2">
+                    <i class="fas fa-balance-scale mr-2"></i>Breakeven Point
+                </h3>
+                <p class="text-sm text-gray-700 mb-2">
+                    Number of treatments needed to cover all costs (no profit, no loss).
+                </p>
+                <div class="text-xs text-gray-600">
+                    <strong>Formula:</strong> Fixed Costs ÷ (Price - Variable Cost per Treatment)<br>
+                    <strong>Interpretation:</strong> If expected uses > breakeven = profitable
+                </div>
+            </div>
+            
+            <!-- Probability of Loss -->
+            <div class="p-4 bg-red-50 rounded-lg">
+                <h3 class="font-medium text-red-800 mb-2">
+                    <i class="fas fa-exclamation-triangle mr-2"></i>Probability of Loss
+                </h3>
+                <p class="text-sm text-gray-700 mb-2">
+                    Statistical chance that the device will lose money in a given month.
+                </p>
+                <div class="text-xs text-gray-600">
+                    <strong>Calculation:</strong> Based on 1000+ simulations with random treatment counts<br>
+                    <strong>Risk Levels:</strong>
+                    <ul class="mt-1 space-y-1">
+                        <li>• < 10%: Low Risk (Safe investment)</li>
+                        <li>• 10-30%: Medium Risk (Monitor closely)</li>
+                        <li>• > 30%: High Risk (Consider price increase or cost reduction)</li>
+                    </ul>
+                </div>
+            </div>
+            
+            <!-- Confidence Interval -->
+            <div class="p-4 bg-teal-50 rounded-lg">
+                <h3 class="font-medium text-teal-800 mb-2">
+                    <i class="fas fa-chart-area mr-2"></i>95% Confidence Interval
+                </h3>
+                <p class="text-sm text-gray-700 mb-2">
+                    Range where we're 95% confident the true value lies, accounting for randomness.
+                </p>
+                <div class="text-xs text-gray-600">
+                    <strong>Interpretation:</strong> "We're 95% confident the monthly profit will be between $X and $Y"<br>
+                    <strong>Example:</strong> $1,200 - $1,800 means profit is likely in this range
+                </div>
+            </div>
+            
+            <!-- Price Elasticity -->
+            <div class="p-4 bg-yellow-50 rounded-lg">
+                <h3 class="font-medium text-yellow-800 mb-2">
+                    <i class="fas fa-exchange-alt mr-2"></i>Price Elasticity of Demand
+                </h3>
+                <p class="text-sm text-gray-700 mb-2">
+                    How demand changes when price changes. Healthcare typically has low elasticity.
+                </p>
+                <div class="text-xs text-gray-600">
+                    <strong>Formula:</strong> % Change in Quantity ÷ % Change in Price<br>
+                    <strong>Healthcare Values:</strong>
+                    <ul class="mt-1 space-y-1">
+                        <li>• -0.1 to -0.3: Typical for medical services (inelastic)</li>
+                        <li>• Meaning: 10% price increase → 1-3% demand decrease</li>
+                        <li>• Negative sign: Price increase → Demand decrease</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Chart Scripts -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+    // Revenue vs Profit Chart
+    const deviceLabels = {{ results|map(attribute='device_name')|list|tojson }};
+    const revenueData = {{ results|map(attribute='expected_revenue')|list|tojson }};
+    const profitData = {{ results|map(attribute='expected_profit')|list|tojson }};
+    
+    new Chart(document.getElementById('revenueProfitChart'), {
+        type: 'bar',
+        data: {
+            labels: deviceLabels,
+            datasets: [
+                {
+                    label: 'Revenue ($)',
+                    data: revenueData,
+                    backgroundColor: 'rgba(56, 178, 172, 0.7)',
+                    borderColor: 'rgba(56, 178, 172, 1)',
+                    borderWidth: 1
+                },
+                {
+                    label: 'Profit ($)',
+                    data: profitData,
+                    backgroundColor: 'rgba(34, 197, 94, 0.7)',
+                    borderColor: 'rgba(34, 197, 94, 1)',
+                    borderWidth: 1
+                }
+            ]
+        },
+        options: {
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    title: {
+                        display: true,
+                        text: 'Amount ($)'
+                    }
+                }
+            },
+            plugins: {
+                legend: {
+                    position: 'top'
+                },
+                tooltip: {
+                    callbacks: {
+                        label: function(context) {
+                            return `$${context.parsed.y.toFixed(2)}`;
+                        }
+                    }
+                }
+            }
+        }
+    });
+    
+    // Cost Breakdown Chart
+    const totalRevenue = {{ results|sum(attribute='expected_revenue') }};
+    const totalVariableCost = {{ results|sum(attribute='expected_cost') * 0.7 }};
+    const totalStaffCost = {{ results|sum(attribute='expected_cost') * 0.2 }};
+    const totalFixedCost = {{ results|sum(attribute='expected_cost') * 0.1 }};
+    const totalProfit = {{ results|sum(attribute='expected_profit') }};
+    
+    new Chart(document.getElementById('costChart'), {
+        type: 'doughnut',
+        data: {
+            labels: ['Variable Costs', 'Staff Costs', 'Fixed Costs', 'Profit'],
+            datasets: [{
+                data: [totalVariableCost, totalStaffCost, totalFixedCost, totalProfit],
+                backgroundColor: [
+                    'rgba(239, 68, 68, 0.7)',   // Red for variable costs
+                    'rgba(249, 115, 22, 0.7)',  // Orange for staff costs
+                    'rgba(156, 163, 175, 0.7)', // Gray for fixed costs
+                    'rgba(34, 197, 94, 0.7)'    // Green for profit
+                ],
+                borderWidth: 1
+            }]
+        },
+        options: {
+            plugins: {
+                legend: {
+                    position: 'right'
+                },
+                tooltip: {
+                    callbacks: {
+                        label: function(context) {
+                            const value = context.parsed;
+                            const percentage = ((value / totalRevenue) * 100).toFixed(1);
+                            return `$${value.toFixed(2)} (${percentage}%)`;
+                        }
+                    }
+                }
+            }
+        }
+    });
+</script>
+{% endblock %}

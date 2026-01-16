@@ -11,4 +11,7 @@ class Doctor(db.Model):
     email = db.Column(db.String(150), unique=True, nullable=False)
     password = db.Column(db.String(255), nullable=False)
 
+    hourly_wage = db.Column(db.Numeric(8,2), default=0.00)
+    hours_per_month = db.Column(db.Integer, default=160)
+
     specialization = db.relationship("Specialization", backref="doctors")

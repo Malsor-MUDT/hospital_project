@@ -19,6 +19,8 @@
                     <th class="p-3 text-left">Email</th>
                     <th class="p-3 text-left">Department</th>
                     <th class="p-3 text-left">Specialization</th>
+                    <th class="p-3 text-left">Hourly Wage (€)</th>
+                    <th class="p-3 text-left">Hours / Month</th>
                     <th class="p-3 text-left">Actions</th>
                 </tr>
             </thead>
@@ -29,6 +31,8 @@
                     <td class="p-3">{{ d.email }}</td>
                     <td class="p-3">{{ d.specialization.department.name }}</td>
                     <td class="p-3">{{ d.specialization.name }}</td>
+                    <td class="p-3">{{ "%.2f"|format(d.hourly_wage) }}</td>
+                    <td class="p-3">{{ d.hours_per_month }}</td>
                     <td class="p-3 flex space-x-2">
                         <button onclick="toggleModal('editDoctorModal-{{ d.doctor_id }}')"
                                 class="text-blue-600 hover:underline">Edit</button>
@@ -42,28 +46,60 @@
                 <!-- Edit Modal -->
                 <div id="editDoctorModal-{{ d.doctor_id }}"
                      class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center z-50">
-                    <div class="bg-white w-96 rounded-lg p-6 space-y-4">
+                    <div class="bg-white w-96 rounded-lg p-6 space-y-3">
                         <h2 class="text-lg font-semibold text-teal-700">Edit Doctor</h2>
 
                         <form method="POST"
                               action="{{ url_for('admin.update_doctor', doctor_id=d.doctor_id) }}"
-                              class="space-y-4">
-                            <input name="name" value="{{ d.name }}" class="w-full border px-3 py-2 rounded">
+                              class="space-y-3">
 
-                            <select name="specialization_id" class="w-full border px-3 py-2 rounded">
-                                {% for s in d.specialization.department.specializations %}
-                                <option value="{{ s.specialization_id }}"
-                                        {{ 'selected' if s.specialization_id == d.specialization_id }}>
-                                    {{ s.name }}
-                                </option>
-                                {% endfor %}
-                            </select>
+                            <div class="flex items-center space-x-3">
+                                <label class="w-40 text-teal-700 font-medium">Name:</label>
+                                <input name="name" value="{{ d.name }}" class="flex-1 border px-2 py-1 rounded">
+                            </div>
 
-                            <div class="flex justify-end space-x-2">
+                            <div class="flex items-center space-x-3">
+                                <label class="w-40 text-teal-700 font-medium">Email:</label>
+                                <input type="email" value="{{ d.email }}" readonly
+                                       class="flex-1 border px-2 py-1 rounded bg-gray-100">
+                            </div>
+
+                            <div class="flex items-center space-x-3">
+                                <label class="w-40 text-teal-700 font-medium">Department:</label>
+                                <select disabled class="flex-1 border px-2 py-1 rounded bg-gray-100">
+                                    <option>{{ d.specialization.department.name }}</option>
+                                </select>
+                            </div>
+
+                            <div class="flex items-center space-x-3">
+                                <label class="w-40 text-teal-700 font-medium">Specialization:</label>
+                                <select name="specialization_id" class="flex-1 border px-2 py-1 rounded">
+                                    {% for s in d.specialization.department.specializations %}
+                                        <option value="{{ s.specialization_id }}"
+                                                {% if s.specialization_id == d.specialization_id %}selected{% endif %}>
+                                            {{ s.name }}
+                                        </option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+
+                            <div class="flex items-center space-x-3">
+                                <label class="w-40 text-teal-700 font-medium">Hourly Wage (€):</label>
+                                <input type="number" step="0.01" name="hourly_wage"
+                                       value="{{ d.hourly_wage }}" class="flex-1 border px-2 py-1 rounded">
+                            </div>
+
+                            <div class="flex items-center space-x-3">
+                                <label class="w-40 text-teal-700 font-medium">Hours / Month:</label>
+                                <input type="number" name="hours_per_month" value="{{ d.hours_per_month }}"
+                                       class="flex-1 border px-2 py-1 rounded">
+                            </div>
+
+                            <div class="flex justify-end space-x-2 mt-3">
                                 <button type="button"
                                         onclick="toggleModal('editDoctorModal-{{ d.doctor_id }}')"
                                         class="border px-4 py-2 rounded">Cancel</button>
-                                <button class="bg-teal-600 text-white px-4 py-2 rounded">Save</button>
+                                <button class="bg-teal-600 text-white px-4 py-2 rounded hover:bg-teal-700">Save</button>
                             </div>
                         </form>
                     </div>
@@ -77,34 +113,58 @@
 <!-- Add Doctor Modal -->
 <div id="doctorModal"
      class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center z-50">
-    <div class="bg-white w-96 rounded-lg p-6 space-y-4">
+    <div class="bg-white w-96 rounded-lg p-6 space-y-3">
         <h2 class="text-lg font-semibold text-teal-700">Add Doctor</h2>
 
-        <form method="POST" action="{{ url_for('admin.add_doctor') }}" class="space-y-4">
-            <input name="name" placeholder="Full name" required class="w-full border px-3 py-2 rounded">
-            <input name="email" type="email" placeholder="Email" required class="w-full border px-3 py-2 rounded">
-            <input name="password" type="password" placeholder="Password" required class="w-full border px-3 py-2 rounded">
+        <form method="POST" action="{{ url_for('admin.add_doctor') }}" class="space-y-3">
 
-            <select id="departmentSelect" class="w-full border px-3 py-2 rounded">
-                <option value="">Select department</option>
-                {% for d in departments %}
-                    <option value="{{ d.department_id }}">{{ d.name }}</option>
-                {% endfor %}
-            </select>
-
-            <select id="specializationSelect"
-                    name="specialization_id"
-                    class="w-full border px-3 py-2 rounded"
-                    disabled>
-                <option>Select specialization</option>
-            </select>
-
-            <div class="flex justify-end space-x-2">
-                <button type="button"
-                        onclick="toggleModal('doctorModal')"
-                        class="border px-4 py-2 rounded">Cancel</button>
-                <button class="bg-teal-600 text-white px-4 py-2 rounded">Add</button>
+            <div class="flex items-center space-x-3">
+                <label class="w-40 text-teal-700 font-medium">Name:</label>
+                <input name="name" placeholder="Full name" required class="flex-1 border px-2 py-1 rounded">
             </div>
+
+            <div class="flex items-center space-x-3">
+                <label class="w-40 text-teal-700 font-medium">Email:</label>
+                <input name="email" type="email" placeholder="Email" required class="flex-1 border px-2 py-1 rounded">
+            </div>
+
+            <div class="flex items-center space-x-3">
+                <label class="w-40 text-teal-700 font-medium">Password:</label>
+                <input name="password" type="password" placeholder="Password" required class="flex-1 border px-2 py-1 rounded">
+            </div>
+
+            <div class="flex items-center space-x-3">
+                <label class="w-40 text-teal-700 font-medium">Department:</label>
+                <select id="departmentSelect" class="flex-1 border px-2 py-1 rounded">
+                    <option value="">Select department</option>
+                    {% for dept in departments %}
+                        <option value="{{ dept.department_id }}">{{ dept.name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <div class="flex items-center space-x-3">
+                <label class="w-40 text-teal-700 font-medium">Specialization:</label>
+                <select id="specializationSelect" name="specialization_id" class="flex-1 border px-2 py-1 rounded" disabled>
+                    <option>Select specialization</option>
+                </select>
+            </div>
+
+            <div class="flex items-center space-x-3">
+                <label class="w-40 text-teal-700 font-medium">Hourly Wage (€):</label>
+                <input type="number" step="0.01" name="hourly_wage" placeholder="e.g., 25.50" class="flex-1 border px-2 py-1 rounded">
+            </div>
+
+            <div class="flex items-center space-x-3">
+                <label class="w-40 text-teal-700 font-medium">Hours / Month:</label>
+                <input type="number" name="hours_per_month" placeholder="e.g., 160" class="flex-1 border px-2 py-1 rounded">
+            </div>
+
+            <div class="flex justify-end space-x-2 mt-3">
+                <button type="button" onclick="toggleModal('doctorModal')" class="border px-4 py-2 rounded">Cancel</button>
+                <button class="bg-teal-600 text-white px-4 py-2 rounded hover:bg-teal-700">Add</button>
+            </div>
+
         </form>
     </div>
 </div>

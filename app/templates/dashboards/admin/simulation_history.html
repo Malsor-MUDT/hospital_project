@@ -1,0 +1,127 @@
+{% extends "dashboards/admin/base_admin.html" %}
+
+{% block content %}
+<div class="p-6 space-y-6">
+    
+    <!-- Header -->
+    <div class="flex justify-between items-center">
+        <h1 class="text-2xl font-semibold text-teal-700">Simulation History</h1>
+        <a href="{{ url_for('admin.simulations') }}"
+           class="px-4 py-2 bg-teal-600 hover:bg-teal-700 text-white rounded">
+            <i class="fas fa-plus mr-2"></i>New Simulation
+        </a>
+    </div>
+    
+    {% if simulations %}
+    <!-- Simulations List -->
+    <div class="bg-white shadow rounded-lg overflow-hidden">
+        <table class="w-full text-sm">
+            <thead class="bg-teal-50">
+                <tr>
+                    <th class="p-3 text-left">ID</th>
+                    <th class="p-3 text-left">Date</th>
+                    <th class="p-3 text-left">Type</th>
+                    <th class="p-3 text-left">Devices</th>
+                    <th class="p-3 text-left">Total Revenue</th>
+                    <th class="p-3 text-left">Total Profit</th>
+                    <th class="p-3 text-left">Actions</th>
+                </tr>
+            </thead>
+            <tbody class="divide-y divide-gray-200">
+                {% for sim in simulations %}
+                {% set results = sim.results|fromjson if sim.results else [] %}
+                <tr class="hover:bg-gray-50">
+                    <td class="p-3 font-medium">#{{ sim.simulation_id }}</td>
+                    <td class="p-3">{{ sim.simulation_date.strftime('%Y-%m-%d %H:%M') }}</td>
+                    <td class="p-3">{{ sim.simulation_type|replace('_', ' ')|title }}</td>
+                    <td class="p-3">{{ results|length if results else 0 }}</td>
+                    <td class="p-3">
+                        ${{ "%.2f"|format(results|sum(attribute='expected_revenue')) if results else 0 }}
+                    </td>
+                    <td class="p-3">
+                        <span class="{% if results and (results|sum(attribute='expected_profit') >= 0) %}text-green-700{% else %}text-red-700{% endif %}">
+                            ${{ "%.2f"|format(results|sum(attribute='expected_profit')) if results else 0 }}
+                        </span>
+                    </td>
+                    <td class="p-3 space-x-2">
+                        <a href="{{ url_for('admin.view_simulation', simulation_id=sim.simulation_id) }}"
+                           class="px-3 py-1 bg-teal-600 text-white rounded text-xs hover:bg-teal-700">
+                            View
+                        </a>
+                        <button onclick="deleteSimulation({{ sim.simulation_id }})"
+                                class="px-3 py-1 bg-red-600 text-white rounded text-xs hover:bg-red-700">
+                            Delete
+                        </button>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    
+    <!-- Statistics -->
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div class="bg-white p-4 rounded-lg shadow">
+            <div class="text-sm text-gray-600">Total Simulations</div>
+            <div class="text-2xl font-bold">{{ simulations|length }}</div>
+        </div>
+        <div class="bg-white p-4 rounded-lg shadow">
+            <div class="text-sm text-gray-600">Average Devices per Simulation</div>
+            <div class="text-2xl font-bold">
+                {% set total_devices = 0 %}
+                {% for sim in simulations %}
+                    {% set results = sim.results|fromjson if sim.results else [] %}
+                    {% set total_devices = total_devices + results|length %}
+                {% endfor %}
+                {{ "%.1f"|format(total_devices / simulations|length if simulations else 0) }}
+            </div>
+        </div>
+        <div class="bg-white p-4 rounded-lg shadow">
+            <div class="text-sm text-gray-600">Most Recent</div>
+            <div class="text-lg font-medium">
+                {{ simulations[0].simulation_date.strftime('%b %d, %Y') if simulations else 'N/A' }}
+            </div>
+        </div>
+    </div>
+    
+    {% else %}
+    <!-- Empty State -->
+    <div class="text-center py-12">
+        <div class="mx-auto flex items-center justify-center h-16 w-16 rounded-full bg-gray-100 mb-4">
+            <i class="fas fa-chart-line text-gray-400 text-2xl"></i>
+        </div>
+        <h3 class="text-lg font-medium text-gray-900 mb-2">No simulations yet</h3>
+        <p class="text-gray-500 mb-6">Run your first simulation to start analyzing device profitability</p>
+        <a href="{{ url_for('admin.simulations') }}"
+           class="px-6 py-2 bg-teal-600 hover:bg-teal-700 text-white rounded font-medium">
+            <i class="fas fa-play mr-2"></i>Run First Simulation
+        </a>
+    </div>
+    {% endif %}
+</div>
+
+<script>
+    function deleteSimulation(simulationId) {
+        if (confirm('Are you sure you want to delete this simulation?')) {
+            fetch(`/admin/simulation/${simulationId}/delete`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    location.reload();
+                } else {
+                    alert('Error deleting simulation');
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('Error deleting simulation');
+            });
+        }
+    }
+</script>
+{% endblock %}

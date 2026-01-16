@@ -1,0 +1,31 @@
+{% extends "dashboards/admin/base_admin.html" %}
+
+{% block content %}
+<h2 class="text-2xl font-semibold mb-4">Incoming Transfers</h2>
+
+<table class="w-full border">
+    <tr class="bg-gray-100">
+        <th>Patient</th>
+        <th>Department</th>
+        <th>From</th>
+        <th>Actions</th>
+    </tr>
+
+    {% for t in transfers %}
+    <tr class="border">
+        <td>{{ t.patient.name }}</td>
+        <td>{{ t.department.name }}</td>
+        <td>{{ t.source_hospital }}</td>
+        <td>
+            <form method="POST" action="{{ url_for('admin.accept_transfer', transfer_id=t.transfer_id) }}" class="inline">
+                <button class="bg-green-600 text-white px-3 py-1 rounded">Accept</button>
+            </form>
+
+            <form method="POST" action="{{ url_for('admin.reject_transfer', transfer_id=t.transfer_id) }}" class="inline">
+                <button class="bg-red-600 text-white px-3 py-1 rounded">Reject</button>
+            </form>
+        </td>
+    </tr>
+    {% endfor %}
+</table>
+{% endblock %}

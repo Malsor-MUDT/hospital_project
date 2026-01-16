@@ -1,0 +1,478 @@
+{% extends "dashboards/admin/base_admin.html" %}
+
+{% block content %}
+<div class="p-6 space-y-6">
+
+    <!-- Header -->
+    <div class="flex justify-between items-center">
+        <h1 class="text-2xl font-semibold text-teal-700">Revenue & Profit Simulation</h1>
+        <div class="flex space-x-2">
+            
+            <button onclick="toggleModal('helpModal')"
+                    class="px-4 py-2 bg-gray-600 hover:bg-gray-700 text-white rounded">
+                Help
+            </button>
+        </div>
+    </div>
+
+    <!-- Simulation Form -->
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <!-- Left: Main Parameters -->
+        <div class="lg:col-span-2 bg-white shadow rounded-lg p-6">
+            <h3 class="text-lg font-semibold text-teal-700 mb-4">Simulation Parameters</h3>
+            <form method="POST" class="space-y-4">
+                
+                <!-- Global Parameters -->
+                <div class="space-y-4 p-4 bg-gray-50 rounded">
+                    <h4 class="font-medium text-gray-700">Global Settings</h4>
+                    
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">
+                                Base Monthly Treatments
+                            </label>
+                            <input type="number" name="base_treatments" step="1" min="0" value="120" required
+                                   class="w-full border border-gray-300 rounded px-3 py-2">
+                            <p class="text-xs text-gray-500 mt-1">Expected treatments per month</p>
+                        </div>
+                        
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">
+                                Seasonality Factor
+                            </label>
+                            <div class="flex items-center">
+                                <input type="range" name="seasonality" min="0.5" max="1.5" step="0.1" value="1.0"
+                                       class="flex-1" oninput="updateSeasonalityValue(this.value)">
+                                <span id="seasonalityValue" class="ml-2 text-sm font-medium">1.0×</span>
+                            </div>
+                            <p class="text-xs text-gray-500 mt-1">Adjust for seasonal variations</p>
+                        </div>
+                    </div>
+                    
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">
+                                Simulation Runs
+                            </label>
+                            <input type="number" name="runs" step="100" min="100" max="10000" value="1000" required
+                                   class="w-full border border-gray-300 rounded px-3 py-2">
+                            <p class="text-xs text-gray-500 mt-1">More runs = more accuracy</p>
+                        </div>
+                        
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">
+                                Target Profit Margin (%)
+                            </label>
+                            <input type="number" name="target_margin" step="1" min="0" max="100" value="20" required
+                                   class="w-full border border-gray-300 rounded px-3 py-2">
+                            <p class="text-xs text-gray-500 mt-1">For price optimization</p>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Device-Specific Parameters -->
+                <div class="space-y-4">
+                    <h4 class="font-medium text-gray-700">Device Settings</h4>
+                    
+                    {% for device in devices %}
+                    <div class="p-4 border rounded hover:bg-gray-50">
+                        <div class="flex justify-between items-center mb-2">
+                            <h5 class="font-medium text-teal-700">{{ device.device_type }}</h5>
+                            <span class="text-sm text-gray-500">
+                                Current Price: ${{ "%.2f"|format(device.price_per_use) }}
+                            </span>
+                        </div>
+                        
+                        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                            <div>
+                                <label class="block text-xs font-medium text-gray-700 mb-1">
+                                    Utilization Rate
+                                </label>
+                                <div class="flex items-center">
+                                    <input type="range" name="util_{{ device.device_id }}" 
+                                           min="0" max="1" step="0.01" 
+                                           value="{{ historical_utilization[device.device_id]|default(0.1) }}"
+                                           class="flex-1" 
+                                           oninput="updateUtilValue('{{ device.device_id }}', this.value)">
+                                    <span id="util_{{ device.device_id }}_value" class="ml-2 text-sm">
+                                        {{ "%.0f"|format(historical_utilization[device.device_id]|default(0.1)*100) }}%
+                                    </span>
+                                </div>
+                            </div>
+                            
+                            <div>
+                                <label class="block text-xs font-medium text-gray-700 mb-1">
+                                    Price Adjustment
+                                </label>
+                                <div class="flex items-center">
+                                    <input type="range" name="price_adj_{{ device.device_id }}" 
+                                           min="0.5" max="1.5" step="0.05" value="1.0"
+                                           class="flex-1"
+                                           oninput="updatePriceAdjValue('{{ device.device_id }}', this.value)">
+                                    <span id="price_adj_{{ device.device_id }}_value" class="ml-2 text-sm">100%</span>
+                                </div>
+                            </div>
+                            
+                            <div class="text-xs text-gray-600">
+                                <div>Cost/Use: ${{ "%.2f"|format(device.cost_per_use) }}</div>
+                                <div>Current Margin: {{ 
+                                    "%.1f"|format(
+                                        ((device.price_per_use - device.cost_per_use) / device.price_per_use * 100)
+                                        if device.price_per_use > 0 else 0
+                                    ) 
+                                }}%</div>
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+                
+                <div class="flex justify-end pt-4">
+                    <button type="submit"
+                            class="px-6 py-2 bg-teal-600 hover:bg-teal-700 text-white rounded font-medium">
+                        Run Enhanced Simulation
+                    </button>
+                </div>
+            </form>
+        </div>
+        
+        <!-- Right: Quick Stats -->
+        <div class="bg-white shadow rounded-lg p-6">
+            <h3 class="text-lg font-semibold text-teal-700 mb-4">Quick Stats</h3>
+            
+            <div class="space-y-4">
+                <div class="p-3 bg-blue-50 rounded">
+                    <div class="text-sm text-blue-700">Total Devices</div>
+                    <div class="text-xl font-bold">{{ devices|length }}</div>
+                </div>
+                
+                <div class="p-3 bg-green-50 rounded">
+                    <div class="text-sm text-green-700">Avg. Device Utilization</div>
+                    <div class="text-xl font-bold">
+                        {{ "%.1f"|format(
+                            historical_utilization.values()|sum / devices|length * 100 
+                            if devices else 0
+                        ) }}%
+                    </div>
+                </div>
+                
+                <div class="p-3 bg-purple-50 rounded">
+                    <div class="text-sm text-purple-700">Avg. Profit Margin</div>
+                    <div class="text-xl font-bold">
+                        {% set total_margin = 0 %}
+                        {% set count = 0 %}
+                        {% for device in devices %}
+                            {% if device.price_per_use > 0 %}
+                                {% set total_margin = total_margin + ((device.price_per_use - device.cost_per_use) / device.price_per_use * 100) %}
+                                {% set count = count + 1 %}
+                            {% endif %}
+                        {% endfor %}
+                        {{ "%.1f"|format(total_margin / count if count > 0 else 0) }}%
+                    </div>
+                </div>
+            </div>
+            
+            <div class="mt-6 p-4 bg-yellow-50 rounded border border-yellow-200">
+                <h4 class="font-medium text-yellow-800 mb-2">Tips for Realistic Simulation</h4>
+                <ul class="text-sm text-yellow-700 space-y-1">
+                    <li>• Use historical utilization rates when available</li>
+                    <li>• Consider seasonal variations (summer/winter)</li>
+                    <li>• Factor in 3-5% maintenance downtime</li>
+                    <li>• Target 15-25% profit margin for sustainability</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Results Section -->
+    {% if summary %}
+    <div class="space-y-6">
+        
+        <!-- Summary Cards -->
+        <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+            <div class="bg-white shadow rounded-lg p-4">
+                <div class="text-sm text-gray-600">Total Expected Revenue</div>
+                <div class="text-2xl font-bold text-teal-700">
+                    ${{ "%.2f"|format(summary|sum(attribute='expected_revenue')) }}
+                </div>
+            </div>
+            
+            <div class="bg-white shadow rounded-lg p-4">
+                <div class="text-sm text-gray-600">Total Expected Profit</div>
+                <div class="text-2xl font-bold text-green-700">
+                    ${{ "%.2f"|format(summary|sum(attribute='expected_profit')) }}
+                </div>
+            </div>
+            
+            <div class="bg-white shadow rounded-lg p-4">
+                <div class="text-sm text-gray-600">Total Expected Cost</div>
+                <div class="text-2xl font-bold text-red-700">
+                    ${{ "%.2f"|format(summary|sum(attribute='expected_cost')) }}
+                </div>
+            </div>
+            
+            <div class="bg-white shadow rounded-lg p-4">
+                <div class="text-sm text-gray-600">Devices at Risk</div>
+                <div class="text-2xl font-bold text-orange-700">
+                    {{ summary|selectattr('probability_loss', 'gt', 0.3)|list|length }}
+                </div>
+            </div>
+        </div>
+        
+        <!-- Charts -->
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <!-- Revenue/Profit Comparison -->
+            <div class="bg-white shadow rounded-lg p-6">
+                <h3 class="text-lg font-semibold text-teal-700 mb-4">Revenue vs Profit by Device</h3>
+                <canvas id="comparisonChart" class="w-full h-64"></canvas>
+            </div>
+            
+            <!-- Cost Breakdown -->
+            <div class="bg-white shadow rounded-lg p-6">
+                <h3 class="text-lg font-semibold text-teal-700 mb-4">Cost Structure Analysis</h3>
+                <canvas id="costChart" class="w-full h-64"></canvas>
+            </div>
+        </div>
+        
+        <!-- Detailed Results -->
+        <div class="bg-white shadow rounded-lg overflow-hidden">
+            <div class="p-4 bg-teal-50 border-b">
+                <h3 class="text-lg font-semibold text-teal-700">Detailed Device Analysis</h3>
+            </div>
+            
+            <table class="w-full text-sm">
+                <thead class="bg-gray-50">
+                    <tr>
+                        <th class="p-3 text-left text-xs font-medium text-gray-500 uppercase">Device</th>
+                        <th class="p-3 text-left text-xs font-medium text-gray-500 uppercase">Expected Uses</th>
+                        <th class="p-3 text-left text-xs font-medium text-gray-500 uppercase">Revenue</th>
+                        <th class="p-3 text-left text-xs font-medium text-gray-500 uppercase">Cost</th>
+                        <th class="p-3 text-left text-xs font-medium text-gray-500 uppercase">Profit</th>
+                        <th class="p-3 text-left text-xs font-medium text-gray-500 uppercase">Margin</th>
+                        <th class="p-3 text-left text-xs font-medium text-gray-500 uppercase">Risk Level</th>
+                        <th class="p-3 text-left text-xs font-medium text-gray-500 uppercase">Breakeven</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-gray-200">
+                    {% for result in detailed %}
+                    {% set margin = (result.expected_profit / result.expected_revenue * 100) if result.expected_revenue > 0 else 0 %}
+                    <tr class="hover:bg-gray-50">
+                        <td class="p-3 font-medium">{{ result.device_name }}</td>
+                        <td class="p-3">{{ "%.0f"|format(result.expected_treatments) }}</td>
+                        <td class="p-3">${{ "%.2f"|format(result.expected_revenue) }}</td>
+                        <td class="p-3">${{ "%.2f"|format(result.expected_cost) }}</td>
+                        <td class="p-3">
+                            <span class="{% if result.expected_profit >= 0 %}text-green-700{% else %}text-red-700{% endif %}">
+                                ${{ "%.2f"|format(result.expected_profit) }}
+                            </span>
+                        </td>
+                        <td class="p-3">
+                            <span class="{% if margin >= 15 %}text-green-700{% elif margin >= 0 %}text-yellow-700{% else %}text-red-700{% endif %}">
+                                {{ "%.1f"|format(margin) }}%
+                            </span>
+                        </td>
+                        <td class="p-3">
+                            {% if result.probability_loss > 0.5 %}
+                                <span class="px-2 py-1 text-xs font-medium bg-red-100 text-red-800 rounded">High</span>
+                            {% elif result.probability_loss > 0.3 %}
+                                <span class="px-2 py-1 text-xs font-medium bg-yellow-100 text-yellow-800 rounded">Medium</span>
+                            {% else %}
+                                <span class="px-2 py-1 text-xs font-medium bg-green-100 text-green-800 rounded">Low</span>
+                            {% endif %}
+                        </td>
+                        <td class="p-3 text-xs text-gray-600">
+                            {{ "%.0f"|format(result.breakeven_treatments) }} uses
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        
+        <!-- Recommendations -->
+        {% if recommendations %}
+        <div class="bg-white shadow rounded-lg overflow-hidden">
+            <div class="p-4 bg-blue-50 border-b">
+                <h3 class="text-lg font-semibold text-blue-700">Price Optimization Recommendations</h3>
+            </div>
+            
+            <div class="p-6 space-y-4">
+                {% for rec in recommendations %}
+                <div class="p-4 border rounded {% if rec.urgency == 'high' %}bg-red-50 border-red-200{% else %}bg-yellow-50 border-yellow-200{% endif %}">
+                    <div class="flex justify-between items-start">
+                        <div>
+                            <h4 class="font-medium">{{ rec.device_name }}</h4>
+                            <p class="text-sm text-gray-600 mt-1">
+                                Current margin: {{ "%.1f"|format(rec.current_margin) }}% → 
+                                Target: {{ "%.1f"|format(rec.target_margin) }}%
+                            </p>
+                        </div>
+                        <div class="text-right">
+                            <div class="text-lg font-bold text-blue-700">
+                                ${{ "%.2f"|format(rec.recommended_price) }}
+                            </div>
+                            <div class="text-sm {% if rec.price_increase_pct > 0 %}text-red-600{% else %}text-green-600{% endif %}">
+                                {{ "%+.1f"|format(rec.price_increase_pct) }}%
+                            </div>
+                        </div>
+                    </div>
+                    <div class="mt-2 text-sm">
+                        Expected demand change: {{ "%+.1f"|format(rec.expected_demand_change_pct) }}%
+                    </div>
+                </div>
+                {% endfor %}
+                
+                <!-- After running simulation in simulations.html -->
+{% if simulation_id %}
+<div class="mt-6 p-4 bg-teal-50 rounded-lg">
+    <p class="text-teal-700">
+        <i class="fas fa-check-circle mr-2"></i>
+        Simulation saved successfully!
+    </p>
+    <div class="mt-2">
+        <a href="{{ url_for('admin.view_simulation', simulation_id=simulation_id) }}"
+           class="px-4 py-2 bg-teal-600 hover:bg-teal-700 text-white rounded text-sm">
+            <i class="fas fa-chart-bar mr-2"></i>View Detailed Results
+        </a>
+        <a href="{{ url_for('admin.simulation_history') }}"
+           class="ml-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded text-sm">
+            <i class="fas fa-history mr-2"></i>View All Simulations
+        </a>
+    </div>
+</div>
+{% endif %}
+            </div>
+        </div>
+        {% endif %}
+        
+        <!-- Chart Scripts -->
+        <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+        <script>
+            // Comparison Chart
+            const compLabels = {{ summary|map(attribute='device_name')|list|tojson }};
+            const compRevenue = {{ summary|map(attribute='expected_revenue')|list|tojson }};
+            const compProfit = {{ summary|map(attribute='expected_profit')|list|tojson }};
+            const compCost = {{ summary|map(attribute='expected_cost')|list|tojson }};
+            
+            new Chart(document.getElementById('comparisonChart'), {
+                type: 'bar',
+                data: {
+                    labels: compLabels,
+                    datasets: [
+                        {
+                            label: 'Revenue ($)',
+                            data: compRevenue,
+                            backgroundColor: 'rgba(56,178,172,0.7)',
+                            borderColor: 'rgba(56,178,172,1)',
+                            borderWidth: 1
+                        },
+                        {
+                            label: 'Profit ($)',
+                            data: compProfit,
+                            backgroundColor: 'rgba(34,197,94,0.7)',
+                            borderColor: 'rgba(34,197,94,1)',
+                            borderWidth: 1
+                        }
+                    ]
+                },
+                options: {
+                    scales: { 
+                        y: { 
+                            beginAtZero: true,
+                            title: { display: true, text: 'Amount ($)' } 
+                        }
+                    },
+                    plugins: { 
+                        legend: { position: 'top' },
+                        tooltip: { callbacks: { label: ctx => `$${ctx.raw.toFixed(2)}` } }
+                    }
+                }
+            });
+            
+            // Cost Breakdown Chart
+            new Chart(document.getElementById('costChart'), {
+                type: 'doughnut',
+                data: {
+                    labels: ['Direct Costs', 'Staff Costs', 'Fixed Costs', 'Profit'],
+                    datasets: [{
+                        data: [
+                            {{ summary|sum(attribute='expected_cost') - summary|map(attribute='expected_cost')|sum * 0.3 }},
+                            {{ summary|map(attribute='expected_cost')|sum * 0.3 }},
+                            {{ summary|map(attribute='expected_cost')|sum * 0.1 }},
+                            {{ summary|sum(attribute='expected_profit') }}
+                        ],
+                        backgroundColor: [
+                            'rgba(239,68,68,0.7)',  // Direct costs - red
+                            'rgba(249,115,22,0.7)', // Staff costs - orange
+                            'rgba(156,163,175,0.7)', // Fixed costs - gray
+                            'rgba(34,197,94,0.7)'   // Profit - green
+                        ]
+                    }]
+                },
+                options: {
+                    plugins: {
+                        legend: { position: 'right' },
+                        tooltip: { callbacks: { label: ctx => `$${ctx.raw.toFixed(2)} (${((ctx.raw/{{summary|sum(attribute='expected_revenue')}})*100).toFixed(1)}%)` } }
+                    }
+                }
+            });
+        </script>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Help Modal -->
+<div id="helpModal" class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center z-50">
+    <div class="bg-white w-11/12 max-w-2xl rounded-lg p-6">
+        <div class="flex justify-between items-center mb-4">
+            <h2 class="text-xl font-semibold text-teal-700">Simulation Guide</h2>
+            <button onclick="toggleModal('helpModal')" class="text-gray-500 hover:text-gray-700">
+                <i class="fas fa-times text-xl"></i>
+            </button>
+        </div>
+        
+        <div class="space-y-4">
+            <div>
+                <h3 class="font-medium text-gray-800">Realistic Parameters</h3>
+                <ul class="text-sm text-gray-600 space-y-1 mt-2">
+                    <li>• <strong>Base Monthly Treatments</strong>: Use historical averages or market research</li>
+                    <li>• <strong>Utilization Rates</strong>: Start with historical data, adjust based on device specialization</li>
+                    <li>• <strong>Seasonality</strong>: 0.8-0.9 for slow months, 1.1-1.2 for peak seasons</li>
+                    <li>• <strong>Maintenance Downtime</strong>: Typically 3-8% depending on device age</li>
+                </ul>
+            </div>
+            
+            <div>
+                <h3 class="font-medium text-gray-800">Statistical Methods</h3>
+                <ul class="text-sm text-gray-600 space-y-1 mt-2">
+                    <li>• Uses <strong>Negative Binomial</strong> distribution (better for healthcare than Poisson)</li>
+                    <li>• Accounts for <strong>over-dispersion</strong> in treatment counts</li>
+                    <li>• Calculates <strong>95% confidence intervals</strong> for estimates</li>
+                    <li>• Estimates <strong>probability of loss</strong> for each device</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    // Helper functions for sliders
+    function updateSeasonalityValue(val) {
+        document.getElementById('seasonalityValue').textContent = val + '×';
+    }
+    
+    function updateUtilValue(deviceId, val) {
+        document.getElementById('util_' + deviceId + '_value').textContent = Math.round(val * 100) + '%';
+    }
+    
+    function updatePriceAdjValue(deviceId, val) {
+        document.getElementById('price_adj_' + deviceId + '_value').textContent = Math.round(val * 100) + '%';
+    }
+    
+    function toggleModal(id) {
+        const modal = document.getElementById(id);
+        modal.classList.toggle('hidden');
+        modal.classList.toggle('flex');
+    }
+</script>
+{% endblock %}

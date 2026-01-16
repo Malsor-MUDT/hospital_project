@@ -1,0 +1,42 @@
+{% extends "dashboards/doctor/base_doctor.html" %}
+
+{% block content %}
+<h1 class="text-2xl font-semibold text-teal-700 mb-4">Treatment Sessions</h1>
+
+<div class="bg-white shadow rounded-lg overflow-x-auto">
+    <table class="w-full text-sm">
+        <thead class="bg-teal-50 text-teal-700">
+            <tr>
+                <th class="p-3 text-left">Patient</th>
+                <th class="p-3 text-left">Treatment</th>
+                <th class="p-3 text-left">Device</th>
+                <th class="p-3 text-left">Doctor</th>
+                <th class="p-3 text-left">Notes</th>
+                <th class="p-3 text-left">Total Price</th>
+                <th class="p-3 text-left">Profit</th>
+                <th class="p-3 text-left">Created At</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for s in sessions %}
+            <tr class="border-t">
+                <td class="p-3">{{ s.patient_session.name }}</td>
+                <td class="p-3">{{ s.treatment_session.name }}</td>
+                <td class="p-3">
+                    {% if s.device_session %}
+                        {{ s.device_session.device_type }}
+                    {% else %}
+                        No device
+                    {% endif %}
+                </td>
+                <td class="p-3">{{ s.doctor_session.name if s.doctor_session else '-' }}</td>
+                <td class="p-3">{{ s.notes or '-' }}</td>
+                <td class="p-3">{{ s.total_price or '-' }}</td>
+                <td class="p-3">{{ s.profit or '-' }}</td>
+                <td class="p-3">{{ s.created_at.strftime('%Y-%m-%d %H:%M') }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endblock %}

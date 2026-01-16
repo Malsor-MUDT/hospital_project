@@ -11,3 +11,4 @@ class Patient(db.Model):
 
     # Relationships
     treatment_sessions = db.relationship("TreatmentSession", backref="patient", lazy=True)
+    hospital = db.relationship("Hospital", backref="patients")

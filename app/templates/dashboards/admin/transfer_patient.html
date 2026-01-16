@@ -1,0 +1,170 @@
+{% extends "dashboards/admin/base_admin.html" %}
+
+{% block content %}
+<div class="p-6">
+    <h2 class="text-2xl font-semibold text-teal-700 mb-6">Transfer Patient</h2>
+
+    <form method="POST" action="{{ url_for('admin.transfer_patient') }}" autocomplete="off">
+
+    <!-- ===================== -->
+    <!-- Patient Autocomplete -->
+    <!-- ===================== -->
+    <div class="form-group position-relative">
+        <label for="patient_search">Patient</label>
+        <input type="text" id="patient_search" placeholder="Search patient..." required class="w-full border px-3 py-2 rounded">
+        <input type="hidden" name="patient_id" id="patient_id">
+
+        <ul id="patient_results" class="list-group position-absolute w-100"
+            style="z-index:1000;"></ul>
+
+
+    </div>
+
+    <!-- ===================== -->
+    <!-- Department Autocomplete -->
+    <!-- ===================== -->
+    <div class="form-group position-relative mt-3">
+        <label for="department_search">Target Department</label>
+        <input type="text" id="department_search" 
+               placeholder="Select patient first" disabled required class="w-full border px-3 py-2 rounded">
+        <input type="hidden" name="department_id" id="department_id">
+
+        <ul id="department_results" class="list-group position-absolute w-100"
+            style="z-index:1000;"></ul>
+    </div>
+
+    <!-- ===================== -->
+    <!-- Submit -->
+    <!-- ===================== -->
+    <button type="submit" class="bg-teal-600 text-white px-4 py-2 rounded hover:bg-teal-700" style="margin-top: 10px;">
+        Find Best Hospital
+    </button>
+</form>
+
+{% if hospitals_options %}
+<div class="mt-8 p-4 border rounded bg-gray-50">
+
+    <h3 class="text-xl font-semibold text-teal-700 mb-4">
+        Best hospitals for transfer
+    </h3>
+
+    <ul class="mb-4">
+        {% for h in hospitals_options %}
+        <li class="mb-2">
+            <strong>{{ h.hospital.name }}</strong>
+            — Score: {{ "%.2f"|format(h.score) }}
+        </li>
+        {% endfor %}
+    </ul>
+
+    <form method="POST" action="{{ url_for('admin.transfer_patient') }}">
+        <input type="hidden" name="patient_id" value="{{ selected_patient.patient_id }}">
+        <input type="hidden" name="department_id" value="{{ selected_department.department_id }}">
+
+        <label class="block font-medium mb-1">
+            Choose hospital to transfer patient
+        </label>
+
+        <select name="target_hospital_id"
+                class="w-full border px-3 py-2 rounded">
+            {% for h in hospitals_options %}
+            <option value="{{ h.hospital.hospital_id }}">
+                {{ h.hospital.name }}
+            </option>
+            {% endfor %}
+        </select>
+
+        <button type="submit"
+                class="mt-4 bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700">
+            Confirm Transfer
+        </button>
+    </form>
+
+</div>
+{% endif %}
+
+    </div>
+</div>
+
+<script>
+/* =======================
+   PATIENT AUTOCOMPLETE
+======================= */
+
+const patientInput = document.getElementById("patient_search");
+const patientResults = document.getElementById("patient_results");
+const patientIdInput = document.getElementById("patient_id");
+
+const departmentInput = document.getElementById("department_search");
+const departmentResults = document.getElementById("department_results");
+const departmentIdInput = document.getElementById("department_id");
+
+patientInput.addEventListener("input", async () => {
+    const q = patientInput.value.trim();
+    patientResults.innerHTML = "";
+
+    if (q.length < 1) return;
+
+    const res = await fetch(`/admin/autocomplete/patient?q=${encodeURIComponent(q)}`);
+    const data = await res.json();
+
+    data.forEach(p => {
+        const li = document.createElement("li");
+        li.className = "list-group-item list-group-item-action";
+        li.textContent = p.name;
+
+        li.onclick = () => {
+            patientInput.value = p.name;
+            patientIdInput.value = p.id;
+            patientResults.innerHTML = "";
+
+            // enable department search
+            departmentInput.disabled = false;
+            departmentInput.value = "";
+            departmentIdInput.value = "";
+        };
+
+        patientResults.appendChild(li);
+    });
+});
+
+/* =======================
+   DEPARTMENT AUTOCOMPLETE
+======================= */
+
+departmentInput.addEventListener("input", async () => {
+    const q = departmentInput.value.trim();
+    departmentResults.innerHTML = "";
+
+    if (!q || !patientIdInput.value) return;
+
+    const res = await fetch(
+        `/admin/autocomplete/department/${patientIdInput.value}?q=${encodeURIComponent(q)}`
+    );
+    const data = await res.json();
+
+    data.forEach(d => {
+        const li = document.createElement("li");
+        li.className = "list-group-item list-group-item-action";
+        li.textContent = d.name;
+
+        li.onclick = () => {
+            departmentInput.value = d.name;
+            departmentIdInput.value = d.id;
+            departmentResults.innerHTML = "";
+        };
+
+        departmentResults.appendChild(li);
+    });
+});
+
+/* =======================
+   CLICK OUTSIDE → CLOSE
+======================= */
+
+document.addEventListener("click", (e) => {
+    if (!patientInput.contains(e.target)) patientResults.innerHTML = "";
+    if (!departmentInput.contains(e.target)) departmentResults.innerHTML = "";
+});
+</script>
+{% endblock %}
