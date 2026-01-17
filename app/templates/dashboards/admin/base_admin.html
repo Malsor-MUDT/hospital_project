@@ -121,7 +121,6 @@
         </div>
 
         
-        
         <div class="mt-2">
             <button onclick="toggleSubmenu('transfersMenu')"
                     class="w-full text-left py-2.5 px-4 rounded hover:bg-teal-800 flex justify-between">
@@ -134,6 +133,18 @@
                 </a>
                 <a href="{{ url_for('admin.incoming_transfers') }}" class="block py-1 px-2 hover:bg-teal-600 rounded">Incoming Transfers</a>
                 <a href="{{ url_for('admin.transfers_history') }}" class="block py-1 px-2 hover:bg-teal-600 rounded">Transfer History</a>
+            </div>
+        </div>
+
+        <div class="mt-2">
+            <button onclick="toggleSubmenu('simulationsMenu')"
+                    class="w-full text-left py-2.5 px-4 rounded hover:bg-teal-800 flex justify-between">
+                Simulations <span>▾</span>
+            </button>
+            <div id="simulationsMenu"
+                 class="ml-4 mt-1 overflow-hidden max-h-0 transition-all duration-300">
+                <a href="{{ url_for('admin.simulations') }}" class="block py-1 px-2 hover:bg-teal-600 rounded">Run Simulations</a>
+                <a href="{{ url_for('admin.simulation_history') }}" class="block py-1 px-2 hover:bg-teal-600 rounded">Simulation History</a>
             </div>
         </div>
 

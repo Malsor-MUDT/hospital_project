@@ -344,7 +344,7 @@ def simulations():
             # Generate recommendations
             recommendations = simulator.optimize_prices(results, target_margin)
             
-            # Save with SIMPLE method
+            # Save with the class method - NOW CORRECT
             simulation_id = simulator.save_simulation_simple(parameters, results, recommendations)
             
             if simulation_id:
@@ -363,6 +363,8 @@ def simulations():
         except Exception as e:
             db.session.rollback()
             flash(f"Simulation error: {str(e)[:100]}", "danger")
+            import traceback
+            traceback.print_exc()
     
     return render_template(
         "dashboards/admin/simulations.html",
@@ -373,7 +375,6 @@ def simulations():
         simulation_id=simulation_id,
         historical_utilization=historical_utilization  
     )
-
 @admin_bp.route("/simulation/<int:simulation_id>")
 def view_simulation(simulation_id):
     """View detailed results of a saved simulation"""
@@ -389,11 +390,88 @@ def view_simulation(simulation_id):
         flash("Access denied", "danger")
         return redirect(url_for("admin.simulations"))
     
-    # Parse JSON data
     import json
-    parameters = json.loads(simulation.parameters) if simulation.parameters else {}
-    results = json.loads(simulation.results) if simulation.results else []
-    recommendations = json.loads(simulation.recommendations) if simulation.recommendations else None
+    
+    # Parse all data
+    parameters = {}
+    results = {}
+    recommendations = []
+    
+    # Parse parameters - FIX THIS PART
+    try:
+        if simulation.parameters:
+            parameters = json.loads(simulation.parameters)
+            
+            # Check for old/new parameter formats and normalize them
+            # This handles both old format (base_treatments) and new format (base_treatments_per_month)
+            if 'base_treatments_per_month' in parameters:
+                parameters['base_treatments'] = parameters['base_treatments_per_month']
+            elif 'base_treatments' not in parameters:
+                parameters['base_treatments'] = 120.0  # Default
+                
+            if 'simulation_runs' not in parameters:
+                parameters['simulation_runs'] = 100  # Default
+                
+            if 'simulation_date' not in parameters:
+                parameters['simulation_date'] = simulation.simulation_date.strftime('%Y-%m-%d %H:%M')
+                
+    except Exception as e:
+        print(f"Error parsing parameters: {e}")
+        # Set default parameters
+        parameters = {
+            'base_treatments': 120.0,
+            'simulation_runs': 100,
+            'simulation_date': simulation.simulation_date.strftime('%Y-%m-%d %H:%M')
+        }
+    
+    # Parse results
+    try:
+        if simulation.results:
+            raw_results = json.loads(simulation.results)
+            
+            if isinstance(raw_results, dict):
+                # Check if we have the new format with 'devices' key
+                if 'devices' in raw_results:
+                    results = raw_results  # Already in correct format
+                else:
+                    # Old format - transform
+                    device_list = []
+                    for device in raw_results.get('devices', []):
+                        mapped_device = {
+                            'device_name': device.get('name', device.get('device_name', 'Unknown Device')),
+                            'expected_profit': float(device.get('profit', device.get('expected_profit', 0))),
+                            'gross_margin': float(device.get('margin', device.get('gross_margin', 0))),
+                            'expected_revenue': float(device.get('revenue', device.get('expected_revenue', 0))),
+                            'expected_cost': float(device.get('cost', device.get('expected_cost', 0))),
+                            'expected_treatments': float(device.get('treatments', device.get('expected_treatments', 0))),
+                            'current_price': float(device.get('current_price', 0)),
+                            'variable_cost_per_use': float(device.get('variable_cost_per_use', 0)),
+                            'fixed_monthly_cost': float(device.get('fixed_monthly_cost', 0)),
+                            'probability_loss': float(device.get('probability_loss', 0)),
+                            'risk_level': device.get('risk_level', 'medium'),
+                            'breakeven_treatments': float(device.get('breakeven_treatments', 0)) if device.get('breakeven_treatments') else None
+                        }
+                        device_list.append(mapped_device)
+                    
+                    results = {
+                        'devices': device_list,
+                        'device_count': raw_results.get('device_count', len(device_list)),
+                        'total_revenue': raw_results.get('total_revenue', sum(d['expected_revenue'] for d in device_list)),
+                        'total_profit': raw_results.get('total_profit', sum(d['expected_profit'] for d in device_list))
+                    }
+            
+    except Exception as e:
+        print(f"Error parsing results: {e}")
+        results = {'devices': [], 'device_count': 0, 'total_revenue': 0, 'total_profit': 0}
+    
+    # Parse recommendations
+    try:
+        if simulation.recommendations:
+            rec_data = json.loads(simulation.recommendations)
+            if isinstance(rec_data, list):
+                recommendations = rec_data
+    except:
+        recommendations = []
     
     return render_template(
         "dashboards/admin/simulation_results.html",
@@ -438,7 +516,6 @@ def delete_simulation(simulation_id):
     db.session.commit()
     
     return jsonify({"success": True})
-
 @admin_bp.route("/dashboard")
 def dashboard():
     # Only normal admins (role = 0)

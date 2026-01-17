@@ -35,7 +35,9 @@ class EnhancedSimulation:
             profits = []
             costs = []
             
-            for _ in range(min(params['simulation_runs'], 100)):  # Limit to 100 runs for speed
+            simulation_runs = min(params.get('simulation_runs', 100), 100)
+            
+            for _ in range(simulation_runs):
                 # Use negative binomial
                 treatments_this_month = np.random.negative_binomial(
                     n=10,
@@ -45,22 +47,43 @@ class EnhancedSimulation:
                 # Calculate per treatment
                 price = float(device.price_per_use) * params['price_changes'].get(device_id, 1.0)
                 direct_cost = float(device.cost_per_use)
-                staff_cost_per_min = (float(device.doctor_hourly_wage)/60 + float(device.nurse_hourly_wage)/60)
-                staff_cost = staff_cost_per_min * (device.doctor_minutes + device.nurse_minutes)
+                doctor_cost_per_min = float(device.doctor_hourly_wage) / 60
+                nurse_cost_per_min = float(device.nurse_hourly_wage) / 60
+                staff_cost = (doctor_cost_per_min * device.doctor_minutes) + (nurse_cost_per_min * device.nurse_minutes)
                 
                 # Add fixed monthly costs
-                fixed_monthly_cost = float(device.base_machine_cost) / 60
+                fixed_monthly_cost = float(device.base_machine_cost) / 60 if hasattr(device, 'base_machine_cost') else 0
                 
                 revenue = treatments_this_month * price
-                total_cost = treatments_this_month * (direct_cost + staff_cost) + fixed_monthly_cost
+                total_cost = (treatments_this_month * (direct_cost + staff_cost)) + fixed_monthly_cost
                 profit = revenue - total_cost
                 
                 revenues.append(float(revenue))
                 costs.append(float(total_cost))
                 profits.append(float(profit))
             
-            # Calculate breakeven (handle division by zero)
+            # Calculate financial metrics
+            expected_treatments = float(avg_treatments)
+            expected_revenue = float(np.mean(revenues)) if revenues else 0.0
+            expected_cost = float(np.mean(costs)) if costs else 0.0
+            expected_profit = float(np.mean(profits)) if profits else 0.0
+            
+            # Calculate profit margin
             variable_cost_per_use = direct_cost + staff_cost
+            gross_margin = (price - variable_cost_per_use) / price if price > 0 else 0
+            
+            # Probability of loss
+            probability_loss = float(np.mean([1 if p < 0 else 0 for p in profits])) if profits else 0.0
+            
+            # Risk level
+            if probability_loss >= 0.3:
+                risk_level = 'high'
+            elif probability_loss >= 0.1:
+                risk_level = 'medium'
+            else:
+                risk_level = 'low'
+            
+            # Breakeven
             if price > variable_cost_per_use:
                 breakeven = float(fixed_monthly_cost / (price - variable_cost_per_use))
             else:
@@ -68,17 +91,18 @@ class EnhancedSimulation:
             
             device_results = {
                 'device_id': device_id,
-                'device_name': device.device_type[:50],  # Limit name length
-                'expected_treatments': float(avg_treatments),
-                'expected_revenue': float(np.mean(revenues)) if revenues else 0.0,
-                'expected_cost': float(np.mean(costs)) if costs else 0.0,
-                'expected_profit': float(np.mean(profits)) if profits else 0.0,
-                'probability_loss': float(np.mean([1 if p < 0 else 0 for p in profits])) if profits else 0.0,
-                'breakeven_treatments': breakeven,
+                'device_name': device.device_type,
+                'expected_treatments': expected_treatments,
+                'expected_revenue': expected_revenue,
+                'expected_cost': expected_cost,
+                'expected_profit': expected_profit,
                 'current_price': float(price),
                 'variable_cost_per_use': float(variable_cost_per_use),
                 'fixed_monthly_cost': float(fixed_monthly_cost),
-                'gross_margin': float((price - variable_cost_per_use) / price) if price > 0 else 0.0
+                'gross_margin': float(gross_margin),
+                'probability_loss': probability_loss,
+                'risk_level': risk_level,
+                'breakeven_treatments': breakeven
             }
             results.append(device_results)
         
@@ -125,46 +149,48 @@ class EnhancedSimulation:
         return recommendations
     
     def save_simulation_simple(self, parameters, results, recommendations=None):
-        """Simple save method that always works"""
+        """Save simulation results with correct field names"""
         try:
-            # Always rollback first
             db.session.rollback()
             
-            # Create minimal summary
+            if not results or len(results) == 0:
+                return None
+            
+            # Transform device data
+            device_list = []
+            for result in results:
+                device_data = {
+                    'device_name': result.get('device_name', 'Unknown Device'),
+                    'expected_profit': float(result.get('expected_profit', 0)),
+                    'gross_margin': float(result.get('gross_margin', 0)),
+                    'expected_revenue': float(result.get('expected_revenue', 0)),
+                    'expected_cost': float(result.get('expected_cost', 0)),
+                    'expected_treatments': float(result.get('expected_treatments', 0)),
+                    'current_price': float(result.get('current_price', 0)),
+                    'variable_cost_per_use': float(result.get('variable_cost_per_use', 0)),
+                    'fixed_monthly_cost': float(result.get('fixed_monthly_cost', 0)),
+                    'probability_loss': float(result.get('probability_loss', 0)),
+                    'risk_level': result.get('risk_level', 'medium'),
+                    'breakeven_treatments': float(result.get('breakeven_treatments', 0)) if result.get('breakeven_treatments') else None
+                }
+                device_list.append(device_data)
+            
+            total_revenue = sum(d['expected_revenue'] for d in device_list)
+            total_profit = sum(d['expected_profit'] for d in device_list)
+            
             summary = {
-                "device_count": len(results),
-                "total_revenue": 0.0,
-                "total_profit": 0.0,
-                "timestamp": datetime.utcnow().isoformat()
+                "device_count": len(device_list),
+                "total_revenue": total_revenue,
+                "total_profit": total_profit,
+                "devices": device_list
             }
             
-            if results:
-                total_rev = sum(float(r.get('expected_revenue', 0) or 0) for r in results)
-                total_prof = sum(float(r.get('expected_profit', 0) or 0) for r in results)
-                summary["total_revenue"] = float(total_rev)
-                summary["total_profit"] = float(total_prof)
-            
-            # Create device list (limited to 5 devices for size)
-            device_list = []
-            for i, r in enumerate(results[:5]):  # Only first 5 devices
-                device_list.append({
-                    'name': r.get('device_name', f'Device {i}'),
-                    'profit': float(r.get('expected_profit', 0) or 0),
-                    'margin': float(r.get('gross_margin', 0) or 0) * 100
-                })
-            summary['devices'] = device_list
-            
-            # Create simulation with VERY simple data
             simulation = Simulation(
                 hospital_id=self.hospital_id,
                 simulation_type="revenue_forecast",
-                parameters=json.dumps({
-                    "simulation_date": datetime.utcnow().isoformat(),
-                    "base_treatments": parameters.get('base_treatments_per_month', 0),
-                    "simulation_runs": parameters.get('simulation_runs', 0)
-                }, default=str),
+                parameters=json.dumps(parameters, default=str),
                 results=json.dumps(summary, default=str),
-                recommendations=json.dumps({"count": len(recommendations or [])}, default=str) if recommendations else None
+                recommendations=json.dumps(recommendations, default=str) if recommendations else None
             )
             
             db.session.add(simulation)
@@ -173,10 +199,11 @@ class EnhancedSimulation:
             
         except Exception as e:
             db.session.rollback()
-            print(f"Save error: {str(e)[:200]}")  # Print first 200 chars
+            print(f"Save error: {e}")
+            import traceback
+            traceback.print_exc()
             return None
     
-    # Alternative even simpler method
     def save_simulation_minimal(self, parameters, results):
         """Minimal save - just store that simulation ran"""
         try:
@@ -198,3 +225,58 @@ class EnhancedSimulation:
             db.session.rollback()
             print(f"Minimal save failed: {e}")
             return None
+
+
+# Optional: Create standalone functions if you prefer
+def save_simulation_standalone(hospital_id, parameters, results, recommendations=None):
+    """Alternative: Standalone save function"""
+    try:
+        db.session.rollback()
+        
+        if not results or len(results) == 0:
+            return None
+        
+        device_list = []
+        for result in results:
+            device_data = {
+                'device_name': result.get('device_name', 'Unknown Device'),
+                'expected_profit': float(result.get('expected_profit', 0)),
+                'gross_margin': float(result.get('gross_margin', 0)),
+                'expected_revenue': float(result.get('expected_revenue', 0)),
+                'expected_cost': float(result.get('expected_cost', 0)),
+                'expected_treatments': float(result.get('expected_treatments', 0)),
+                'current_price': float(result.get('current_price', 0)),
+                'variable_cost_per_use': float(result.get('variable_cost_per_use', 0)),
+                'fixed_monthly_cost': float(result.get('fixed_monthly_cost', 0)),
+                'probability_loss': float(result.get('probability_loss', 0)),
+                'risk_level': result.get('risk_level', 'medium'),
+                'breakeven_treatments': float(result.get('breakeven_treatments', 0)) if result.get('breakeven_treatments') else None
+            }
+            device_list.append(device_data)
+        
+        total_revenue = sum(d['expected_revenue'] for d in device_list)
+        total_profit = sum(d['expected_profit'] for d in device_list)
+        
+        summary = {
+            "device_count": len(device_list),
+            "total_revenue": total_revenue,
+            "total_profit": total_profit,
+            "devices": device_list
+        }
+        
+        simulation = Simulation(
+            hospital_id=hospital_id,
+            simulation_type="revenue_forecast",
+            parameters=json.dumps(parameters, default=str),
+            results=json.dumps(summary, default=str),
+            recommendations=json.dumps(recommendations, default=str) if recommendations else None
+        )
+        
+        db.session.add(simulation)
+        db.session.commit()
+        return simulation.simulation_id
+        
+    except Exception as e:
+        db.session.rollback()
+        print(f"Standalone save error: {e}")
+        return None

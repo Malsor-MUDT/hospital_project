@@ -29,18 +29,19 @@
             </thead>
             <tbody class="divide-y divide-gray-200">
                 {% for sim in simulations %}
-                {% set results = sim.results|fromjson if sim.results else [] %}
+                {% set results = sim.results|fromjson if sim.results else {} %}
                 <tr class="hover:bg-gray-50">
                     <td class="p-3 font-medium">#{{ sim.simulation_id }}</td>
                     <td class="p-3">{{ sim.simulation_date.strftime('%Y-%m-%d %H:%M') }}</td>
                     <td class="p-3">{{ sim.simulation_type|replace('_', ' ')|title }}</td>
-                    <td class="p-3">{{ results|length if results else 0 }}</td>
+                    <td class="p-3">{{ results.device_count|default(0) }}</td>
                     <td class="p-3">
-                        ${{ "%.2f"|format(results|sum(attribute='expected_revenue')) if results else 0 }}
+                        ${{ "%.2f"|format(results.total_revenue|default(0)) }}
                     </td>
                     <td class="p-3">
-                        <span class="{% if results and (results|sum(attribute='expected_profit') >= 0) %}text-green-700{% else %}text-red-700{% endif %}">
-                            ${{ "%.2f"|format(results|sum(attribute='expected_profit')) if results else 0 }}
+                        {% set profit = results.total_profit|default(0) %}
+                        <span class="{% if profit >= 0 %}text-green-700{% else %}text-red-700{% endif %}">
+                            ${{ "%.2f"|format(profit) }}
                         </span>
                     </td>
                     <td class="p-3 space-x-2">
@@ -65,17 +66,7 @@
             <div class="text-sm text-gray-600">Total Simulations</div>
             <div class="text-2xl font-bold">{{ simulations|length }}</div>
         </div>
-        <div class="bg-white p-4 rounded-lg shadow">
-            <div class="text-sm text-gray-600">Average Devices per Simulation</div>
-            <div class="text-2xl font-bold">
-                {% set total_devices = 0 %}
-                {% for sim in simulations %}
-                    {% set results = sim.results|fromjson if sim.results else [] %}
-                    {% set total_devices = total_devices + results|length %}
-                {% endfor %}
-                {{ "%.1f"|format(total_devices / simulations|length if simulations else 0) }}
-            </div>
-        </div>
+      
         <div class="bg-white p-4 rounded-lg shadow">
             <div class="text-sm text-gray-600">Most Recent</div>
             <div class="text-lg font-medium">
